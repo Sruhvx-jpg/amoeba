@@ -1,0 +1,27 @@
+# Environment & secrets
+.env
+.env.*
+!.env.example
+
+# Binaries & build artifacts
+bin/
+dist/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Node / Frontend
+node_modules/
+.next/
+.turbo/
+
+# Go
+vendor/
+
+# OS / Editor
+.DS_Store
+*.swp
+*.swo
+*~
