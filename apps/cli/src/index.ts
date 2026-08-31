@@ -10,7 +10,7 @@ program
   .version("0.1.0");
 
 program
-  .command("new")
+  .command("new", { isDefault: true })
   .description("Create a new Amoeba project")
   .argument("[project-name]", "Name of the project")
   .option("-f, --frontend <frontend>", "Frontend framework (nextjs, tauri, react, api-only)")
