@@ -2,7 +2,9 @@ export interface ReleaseInfo {
   currentVersion: string;
   latestVersion: string;
   hasUpdate: boolean;
-  updateType: "major" | "minor" | "patch" | "none";
+  updateType: "major" | "minor" | "patch" | "prerelease" | "none";
+  isPrerelease: boolean;
+  releaseName?: string;
   releaseUrl?: string;
   releaseNotes?: string;
   publishedAt?: string;
@@ -10,21 +12,36 @@ export interface ReleaseInfo {
 
 interface GitHubReleaseResponse {
   tag_name?: string;
+  name?: string;
   html_url?: string;
   body?: string;
   published_at?: string;
+  prerelease?: boolean;
+  draft?: boolean;
 }
 
-function parseSemver(version: string): [number, number, number] | null {
+interface GitHubTagResponse {
+  name: string;
+}
+
+function parseSemver(version: string): { major: number; minor: number; patch: number; prerelease?: string } | null {
   const clean = version.replace(/^v/, "").trim();
-  const parts = clean.split(".").map((p) => parseInt(p, 10));
-  if (parts.length < 3 || parts.some((n) => isNaN(n))) {
+  const match = clean.match(/^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?$/);
+  if (!match || !match[1] || !match[2] || !match[3]) {
     return null;
   }
-  return [parts[0]!, parts[1]!, parts[2]!];
+  return {
+    major: parseInt(match[1], 10),
+    minor: parseInt(match[2], 10),
+    patch: parseInt(match[3], 10),
+    prerelease: match[4],
+  };
 }
 
-function compareSemver(current: string, latest: string): "major" | "minor" | "patch" | "none" {
+function compareSemver(
+  current: string,
+  latest: string
+): "major" | "minor" | "patch" | "prerelease" | "none" {
   const c = parseSemver(current);
   const l = parseSemver(latest);
 
@@ -32,12 +49,18 @@ function compareSemver(current: string, latest: string): "major" | "minor" | "pa
     return current !== latest ? "patch" : "none";
   }
 
-  const [cMajor, cMinor, cPatch] = c;
-  const [lMajor, lMinor, lPatch] = l;
+  if (l.major > c.major) return "major";
+  if (l.major < c.major) return "none";
 
-  if (lMajor > cMajor) return "major";
-  if (lMajor === cMajor && lMinor > cMinor) return "minor";
-  if (lMajor === cMajor && lMinor === cMinor && lPatch > cPatch) return "patch";
+  if (l.minor > c.minor) return "minor";
+  if (l.minor < c.minor) return "none";
+
+  if (l.patch > c.patch) return "patch";
+  if (l.patch < c.patch) return "none";
+
+  if (!c.prerelease && l.prerelease) return "none";
+  if (c.prerelease && !l.prerelease) return "patch";
+  if (c.prerelease && l.prerelease && c.prerelease !== l.prerelease) return "prerelease";
 
   return "none";
 }
@@ -46,14 +69,15 @@ export class ReleaseService {
   private readonly repo: string;
   private readonly timeoutMs: number;
 
-  constructor(repo = "Sruhvx-jpg/amoeba", timeoutMs = 3500) {
+  constructor(repo = "Sruhvx-jpg/amoeba", timeoutMs = 4000) {
     this.repo = repo;
     this.timeoutMs = timeoutMs;
   }
 
   public async checkLatestRelease(currentVersion: string): Promise<ReleaseInfo> {
     try {
-      const response = await fetch(`https://api.github.com/repos/${this.repo}/releases/latest`, {
+      // 1. Check all GitHub releases (includes prereleases and betas)
+      const releasesRes = await fetch(`https://api.github.com/repos/${this.repo}/releases`, {
         headers: {
           "User-Agent": "amoeba-cli",
           Accept: "application/vnd.github.v3+json",
@@ -61,38 +85,71 @@ export class ReleaseService {
         signal: AbortSignal.timeout(this.timeoutMs),
       });
 
-      if (!response.ok) {
-        return {
-          currentVersion,
-          latestVersion: currentVersion,
-          hasUpdate: false,
-          updateType: "none",
-        };
+      if (releasesRes.ok) {
+        const releases = (await releasesRes.json()) as GitHubReleaseResponse[];
+        const validReleases = releases.filter((r) => !r.draft && r.tag_name);
+
+        if (validReleases.length > 0) {
+          const newest = validReleases[0]!;
+          const latestVersion = (newest.tag_name ?? "").replace(/^v/, "").trim();
+          const updateType = compareSemver(currentVersion, latestVersion);
+          const hasUpdate = updateType !== "none";
+
+          return {
+            currentVersion,
+            latestVersion: latestVersion || currentVersion,
+            hasUpdate,
+            updateType,
+            isPrerelease: Boolean(newest.prerelease),
+            releaseName: newest.name ?? undefined,
+            releaseUrl: newest.html_url ?? `https://github.com/${this.repo}/releases/tag/${newest.tag_name}`,
+            releaseNotes: newest.body ?? undefined,
+            publishedAt: newest.published_at ?? undefined,
+          };
+        }
       }
 
-      const data = (await response.json()) as GitHubReleaseResponse;
-      const rawTag = data.tag_name ?? "";
-      const latestVersion = rawTag.replace(/^v/, "").trim() || currentVersion;
+      // 2. Fallback to Git Tags if no releases found
+      const tagsRes = await fetch(`https://api.github.com/repos/${this.repo}/tags`, {
+        headers: {
+          "User-Agent": "amoeba-cli",
+          Accept: "application/vnd.github.v3+json",
+        },
+        signal: AbortSignal.timeout(this.timeoutMs),
+      });
 
-      const updateType = compareSemver(currentVersion, latestVersion);
-      const hasUpdate = updateType !== "none";
+      if (tagsRes.ok) {
+        const tags = (await tagsRes.json()) as GitHubTagResponse[];
+        if (tags.length > 0) {
+          const newestTag = tags[0]!.name.replace(/^v/, "").trim();
+          const updateType = compareSemver(currentVersion, newestTag);
+          const hasUpdate = updateType !== "none";
 
-      return {
-        currentVersion,
-        latestVersion,
-        hasUpdate,
-        updateType,
-        releaseUrl: data.html_url,
-        releaseNotes: data.body ?? undefined,
-        publishedAt: data.published_at ?? undefined,
-      };
-    } catch {
-      // Silently fall back if offline or rate limited
+          return {
+            currentVersion,
+            latestVersion: newestTag || currentVersion,
+            hasUpdate,
+            updateType,
+            isPrerelease: false,
+            releaseUrl: `https://github.com/${this.repo}/releases/tag/${tags[0]!.name}`,
+          };
+        }
+      }
+
       return {
         currentVersion,
         latestVersion: currentVersion,
         hasUpdate: false,
         updateType: "none",
+        isPrerelease: false,
+      };
+    } catch {
+      return {
+        currentVersion,
+        latestVersion: currentVersion,
+        hasUpdate: false,
+        updateType: "none",
+        isPrerelease: false,
       };
     }
   }
