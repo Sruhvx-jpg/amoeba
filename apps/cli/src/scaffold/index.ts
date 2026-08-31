@@ -31,7 +31,7 @@ export async function generateProject(opts: ScaffoldOptions): Promise<void> {
       await writeNextJSTemplate(baseDir, opts.projectName);
       break;
     case "tauri":
-      await writeTauriTemplate(baseDir, opts.projectName);
+      await writeTauriTemplate(baseDir, opts.projectName, opts.tauriTemplate ?? "react");
       break;
     case "react":
       await writeReactTemplate(baseDir, opts.projectName);

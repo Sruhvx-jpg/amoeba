@@ -2,10 +2,24 @@ import * as p from "@clack/prompts";
 import pc from "picocolors";
 import { generateProject } from "../scaffold/index.js";
 import { printBanner } from "../ui/banner.js";
-import type { CLIOptions, DatabaseEngine, FrontendFramework, ScaffoldOptions } from "../types.js";
+import type {
+  CLIOptions,
+  DatabaseEngine,
+  FrontendFramework,
+  ScaffoldOptions,
+  TauriFramework,
+} from "../types.js";
 
 const VALID_DATABASES: readonly DatabaseEngine[] = ["gorm", "mongo"];
 const VALID_FRONTENDS: readonly FrontendFramework[] = ["nextjs", "tauri", "react", "api-only"];
+const VALID_TAURI_TEMPLATES: readonly TauriFramework[] = [
+  "react",
+  "nextjs",
+  "vue",
+  "svelte",
+  "solid",
+  "vanilla",
+];
 
 const DB_LABELS: Record<DatabaseEngine, string> = {
   gorm: "PostgreSQL (GORM ORM)",
@@ -14,9 +28,27 @@ const DB_LABELS: Record<DatabaseEngine, string> = {
 
 const FE_LABELS: Record<FrontendFramework, string> = {
   nextjs: "Next.js 15 (App Router + Tailwind CSS)",
-  tauri: "Tauri 2.0 (Rust Desktop + React/Vite)",
+  tauri: "Tauri 2.0 (Rust Desktop)",
   react: "React (Vite + TypeScript + Tailwind)",
   "api-only": "API Only (Pure Go Fiber Backend)",
+  "tauri-react": "Tauri 2.0 (Rust + React)",
+  "tauri-nextjs": "Tauri 2.0 (Rust + Next.js)",
+  "tauri-vue": "Tauri 2.0 (Rust + Vue 3)",
+  "tauri-svelte": "Tauri 2.0 (Rust + Svelte 5)",
+  "tauri-solid": "Tauri 2.0 (Rust + SolidJS)",
+  "tauri-vanilla": "Tauri 2.0 (Rust + Vanilla TS)",
+  vue: "Vue 3",
+  svelte: "Svelte 5",
+  solid: "SolidJS",
+};
+
+const TAURI_TEMPLATE_LABELS: Record<TauriFramework, string> = {
+  react: "React (Vite + TypeScript)",
+  nextjs: "Next.js 15 (Static Export / SSG)",
+  vue: "Vue 3 (Vite + TypeScript)",
+  svelte: "Svelte 5 (Vite + TypeScript)",
+  solid: "Solid (Vite + TypeScript)",
+  vanilla: "Vanilla (Vite + TypeScript)",
 };
 
 function isValidDatabase(val: string): val is DatabaseEngine {
@@ -25,6 +57,10 @@ function isValidDatabase(val: string): val is DatabaseEngine {
 
 function isValidFrontend(val: string): val is FrontendFramework {
   return (VALID_FRONTENDS as readonly string[]).includes(val);
+}
+
+function isValidTauriTemplate(val: string): val is TauriFramework {
+  return (VALID_TAURI_TEMPLATES as readonly string[]).includes(val);
 }
 
 export async function handleNewCommand(projectNameArg: string | undefined, options: CLIOptions): Promise<void> {
@@ -92,7 +128,7 @@ export async function handleNewCommand(projectNameArg: string | undefined, optio
     database = dbPrompt;
   }
 
-  // STEP 3: Frontend Framework
+  // STEP 3: Frontend Platform / Framework
   let frontend: FrontendFramework | undefined = undefined;
   if (options.frontend && isValidFrontend(options.frontend)) {
     frontend = options.frontend;
@@ -101,7 +137,7 @@ export async function handleNewCommand(projectNameArg: string | undefined, optio
 
   if (!frontend) {
     const fePrompt = await p.select({
-      message: `${pc.bold(pc.cyan("[3/3]"))} Choose your frontend framework:`,
+      message: `${pc.bold(pc.cyan("[3/3]"))} Choose your frontend platform:`,
       options: [
         {
           value: "nextjs" as const,
@@ -110,8 +146,8 @@ export async function handleNewCommand(projectNameArg: string | undefined, optio
         },
         {
           value: "tauri" as const,
-          label: "Tauri 2.0 (Rust Desktop + React/Vite)",
-          hint: "Lightweight, memory-efficient native desktop application",
+          label: "Tauri 2.0 (Rust Desktop App)",
+          hint: "Lightweight native desktop application powered by Rust",
         },
         {
           value: "react" as const,
@@ -134,12 +170,69 @@ export async function handleNewCommand(projectNameArg: string | undefined, optio
     frontend = fePrompt;
   }
 
+  // STEP 3b: If Tauri is selected, prompt for UI framework flavor
+  let tauriTemplate: TauriFramework | undefined = undefined;
+  if (frontend === "tauri") {
+    if (options.tauriTemplate && isValidTauriTemplate(options.tauriTemplate)) {
+      tauriTemplate = options.tauriTemplate;
+      p.log.step(`  ${pc.bold(pc.magenta("↳"))} Tauri UI: ${pc.green(TAURI_TEMPLATE_LABELS[tauriTemplate])}`);
+    } else {
+      const tauriPrompt = await p.select({
+        message: `${pc.bold(pc.magenta("↳"))} Choose UI Framework for Tauri Desktop:`,
+        options: [
+          {
+            value: "react" as const,
+            label: "React (Vite + TypeScript)",
+            hint: "Fast React Single Page Application inside Tauri",
+          },
+          {
+            value: "nextjs" as const,
+            label: "Next.js 15 (Static Export / SSG)",
+            hint: "Static Next.js App Router bundled inside desktop window",
+          },
+          {
+            value: "vue" as const,
+            label: "Vue 3 (Vite + TypeScript)",
+            hint: "Vue 3 Composition API inside Tauri",
+          },
+          {
+            value: "svelte" as const,
+            label: "Svelte 5 (Vite + TypeScript)",
+            hint: "Hyper-lean reactive UI with Svelte 5 Runes",
+          },
+          {
+            value: "solid" as const,
+            label: "SolidJS (Vite + TypeScript)",
+            hint: "Fine-grained reactive SolidJS frontend",
+          },
+          {
+            value: "vanilla" as const,
+            label: "Vanilla (Vite + TypeScript)",
+            hint: "Clean minimal TypeScript without UI library bloat",
+          },
+        ],
+      });
+
+      if (p.isCancel(tauriPrompt)) {
+        p.cancel(pc.yellow("Project creation cancelled."));
+        process.exit(0);
+      }
+
+      tauriTemplate = tauriPrompt;
+    }
+  }
+
   // Summary Note
+  const frontendSummary =
+    frontend === "tauri" && tauriTemplate
+      ? `Tauri 2.0 (Rust) + ${TAURI_TEMPLATE_LABELS[tauriTemplate]}`
+      : FE_LABELS[frontend];
+
   const summary = [
     `${pc.bold("Target Directory:")} ./${projectName}`,
     `${pc.bold("Backend:")}          Go Fiber v3`,
     `${pc.bold("Database:")}         ${DB_LABELS[database]}`,
-    `${pc.bold("Frontend:")}         ${FE_LABELS[frontend]}`,
+    `${pc.bold("Frontend:")}         ${frontendSummary}`,
   ].join("\n");
 
   p.note(summary, "Project Configuration");
@@ -148,6 +241,7 @@ export async function handleNewCommand(projectNameArg: string | undefined, optio
     projectName,
     database,
     frontend,
+    tauriTemplate,
   };
 
   const s = p.spinner();
@@ -158,10 +252,12 @@ export async function handleNewCommand(projectNameArg: string | undefined, optio
     s.stop(pc.green(`✔ ${projectName} scaffolded successfully!`));
 
     const targetDir = frontend === "tauri" ? "apps/desktop" : "apps/web";
+    const devCommand = frontend === "tauri" ? "pnpm tauri dev" : "pnpm dev";
+
     const nextSteps = [
       `cd ${projectName}`,
       `cd apps/api && go run ./cmd/server/main.go`,
-      ...(frontend !== "api-only" ? [`cd ../${targetDir} && pnpm install && pnpm dev`] : []),
+      ...(frontend !== "api-only" ? [`cd ../${targetDir} && pnpm install && ${devCommand}`] : []),
     ];
 
     p.note(

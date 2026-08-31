@@ -18,6 +18,7 @@ program
   .argument("[project-name]", "Name of the project")
   .option("-f, --frontend <frontend>", "Frontend framework (nextjs, tauri, react, api-only)")
   .option("-d, --db <database>", "Database engine (gorm, mongo)")
+  .option("-t, --tauri-template <template>", "Tauri UI flavor (react, nextjs, vue, svelte, solid, vanilla)")
   .action(async (projectName: string | undefined, options: CLIOptions) => {
     await handleNewCommand(projectName, options);
   });
