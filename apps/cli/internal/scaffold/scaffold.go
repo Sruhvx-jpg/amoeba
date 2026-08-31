@@ -19,10 +19,10 @@ func GenerateProject(opts Options) error {
 		filepath.Join(baseDir, "apps", "api", "cmd", "server"),
 		filepath.Join(baseDir, "apps", "api", "internal", "config"),
 		filepath.Join(baseDir, "apps", "api", "internal", "database"),
-		filepath.Join(baseDir, "apps", "api", "internal", "routes"),
 		filepath.Join(baseDir, "apps", "api", "internal", "schema"),
-		filepath.Join(baseDir, "apps", "api", "internal", "modules", "health"),
-		filepath.Join(baseDir, "apps", "api", "pkg", "handler"),
+		filepath.Join(baseDir, "apps", "api", "internal", "types"),
+		filepath.Join(baseDir, "apps", "api", "internal", "service"),
+		filepath.Join(baseDir, "apps", "api", "internal", "routes"),
 		filepath.Join(baseDir, "apps", "api", "pkg", "response"),
 	}
 
@@ -176,54 +176,32 @@ func Connect(cfg *config.Config) (*gorm.DB, error) {
 		return err
 	}
 
-	// schema/user.go
-	userSchemaContent := `package schema
-
-import (
-	"time"
-
-	"github.com/google/uuid"
-	"gorm.io/gorm"
-)
-
-type User struct {
-	ID        uuid.UUID      ` + "`gorm:\"type:uuid;primaryKey\" json:\"id\"`" + `
-	Name      string         ` + "`gorm:\"type:varchar(100);not null\" json:\"name\"`" + `
-	Email     string         ` + "`gorm:\"type:varchar(255);uniqueIndex;not null\" json:\"email\"`" + `
-	Password  string         ` + "`gorm:\"type:varchar(255);not null\" json:\"-\"`" + `
-	Role      string         ` + "`gorm:\"type:varchar(50);not null;default:'user'\" json:\"role\"`" + `
-	CreatedAt time.Time      ` + "`gorm:\"autoCreateTime\" json:\"created_at\"`" + `
-	UpdatedAt time.Time      ` + "`gorm:\"autoUpdateTime\" json:\"updated_at\"`" + `
-	DeletedAt gorm.DeletedAt ` + "`gorm:\"index\" json:\"-\"`" + `
-}
-
-func (User) TableName() string {
-	return "users"
-}
-
-func (u *User) BeforeCreate(tx *gorm.DB) error {
-	if u.ID == uuid.Nil {
-		u.ID = uuid.New()
-	}
-	return nil
-}
-`
-	if err := writeFile(filepath.Join(apiDir, "internal", "schema", "user.go"), userSchemaContent); err != nil {
-		return err
-	}
-
 	// schema/schema.go
 	schemaContent := `package schema
 
 import "gorm.io/gorm"
 
+// Migrate registers and auto-migrates database schemas.
 func Migrate(db *gorm.DB) error {
 	return db.AutoMigrate(
-		&User{},
+		// Register schemas here:
+		// &MyModel{},
 	)
 }
 `
 	if err := writeFile(filepath.Join(apiDir, "internal", "schema", "schema.go"), schemaContent); err != nil {
+		return err
+	}
+
+	// types/health.go
+	healthTypesContent := `package types
+
+type HealthStatus struct {
+	Status   string ` + "`json:\"status\"`" + `
+	Database string ` + "`json:\"database\"`" + `
+}
+`
+	if err := writeFile(filepath.Join(apiDir, "internal", "types", "health.go"), healthTypesContent); err != nil {
 		return err
 	}
 
@@ -238,8 +216,15 @@ type Body struct {
 	Error   string ` + "`json:\"error,omitempty\"`" + `
 }
 
-func Success(c fiber.Ctx, data any) error {
+func OK(c fiber.Ctx, data any) error {
 	return c.Status(fiber.StatusOK).JSON(Body{
+		Success: true,
+		Data:    data,
+	})
+}
+
+func Created(c fiber.Ctx, data any) error {
+	return c.Status(fiber.StatusCreated).JSON(Body{
 		Success: true,
 		Data:    data,
 	})
@@ -256,109 +241,62 @@ func Error(c fiber.Ctx, status int, msg string) error {
 		return err
 	}
 
-	// basehandler.go
-	baseHandlerContent := fmt.Sprintf(`package handler
+	// service/health.go
+	healthServiceContent := fmt.Sprintf(`package service
 
 import (
+	"context"
+
+	"%s/api/internal/types"
+
+	"gorm.io/gorm"
+)
+
+type HealthService struct {
+	db *gorm.DB
+}
+
+func NewHealthService(db *gorm.DB) *HealthService {
+	return &HealthService{db: db}
+}
+
+func (s *HealthService) Check(ctx context.Context) types.HealthStatus {
+	dbStatus := "connected"
+	sqlDB, err := s.db.DB()
+	if err != nil || sqlDB.PingContext(ctx) != nil {
+		dbStatus = "disconnected"
+	}
+
+	return types.HealthStatus{
+		Status:   "ok",
+		Database: dbStatus,
+	}
+}
+`, moduleName)
+	if err := writeFile(filepath.Join(apiDir, "internal", "service", "health.go"), healthServiceContent); err != nil {
+		return err
+	}
+
+	// routes/health.go
+	healthRoutesContent := fmt.Sprintf(`package routes
+
+import (
+	"%s/api/internal/service"
 	"%s/api/pkg/response"
 
 	"github.com/gofiber/fiber/v3"
 )
 
-type BaseHandler struct {
-	fiber.Ctx
+func registerHealthRoutes(router fiber.Router, healthSvc *service.HealthService) {
+	const path = "/health"
+
+	router.Get(path, func(c fiber.Ctx) error {
+		status := healthSvc.Check(c.Context())
+		return response.OK(c, status)
+	})
 }
-
-func NewBaseHandler(c fiber.Ctx) *BaseHandler {
-	return &BaseHandler{Ctx: c}
-}
-
-func (b *BaseHandler) Success(data any) error {
-	return response.Success(b.Ctx, data)
-}
-
-func (b *BaseHandler) Error(status int, msg string) error {
-	return response.Error(b.Ctx, status, msg)
-}
-`, moduleName)
-	if err := writeFile(filepath.Join(apiDir, "pkg", "handler", "basehandler.go"), baseHandlerContent); err != nil {
-		return err
-	}
-
-	// health module: service.go
-	healthServiceContent := `package health
-
-type Service struct{}
-
-func NewService() *Service {
-	return &Service{}
-}
-
-func (s *Service) Check() (map[string]string, error) {
-	return map[string]string{
-		"status": "healthy",
-	}, nil
-}
-`
-	if err := writeFile(filepath.Join(apiDir, "internal", "modules", "health", "service.go"), healthServiceContent); err != nil {
-		return err
-	}
-
-	// health module: handler.go
-	healthHandlerContent := fmt.Sprintf(`package health
-
-import (
-	"%s/api/pkg/handler"
-
-	"github.com/gofiber/fiber/v3"
-)
-
-type Handler struct {
-	service *Service
-}
-
-func NewHandler(service *Service) *Handler {
-	return &Handler{service: service}
-}
-
-func (h *Handler) Check(c fiber.Ctx) error {
-	b := handler.NewBaseHandler(c)
-	data, err := h.service.Check()
-	if err != nil {
-		return b.Error(fiber.StatusInternalServerError, err.Error())
-	}
-	return b.Success(data)
-}
-`, moduleName)
-	if err := writeFile(filepath.Join(apiDir, "internal", "modules", "health", "handler.go"), healthHandlerContent); err != nil {
-		return err
-	}
-
-	// health module: routes.go
-	healthRoutesContent := `package health
-
-import "github.com/gofiber/fiber/v3"
-
-func RegisterRoutes(r fiber.Router, h *Handler) {
-	r.Get("/health", h.Check)
-}
-`
-	if err := writeFile(filepath.Join(apiDir, "internal", "modules", "health", "routes.go"), healthRoutesContent); err != nil {
-		return err
-	}
-
-	// health module: middleware.go
-	healthMiddlewareContent := `package health
-
-import "github.com/gofiber/fiber/v3"
-
-func Middleware() fiber.Handler {
-	return func(c fiber.Ctx) error {
-		return c.Next()
-	}
-}
-`
-	if err := writeFile(filepath.Join(apiDir, "internal", "modules", "health", "middleware.go"), healthMiddlewareContent); err != nil {
+`, moduleName, moduleName)
+	if err := writeFile(filepath.Join(apiDir, "internal", "routes", "health.go"), healthRoutesContent); err != nil {
 		return err
 	}
 
@@ -366,19 +304,22 @@ func Middleware() fiber.Handler {
 	routesContent := fmt.Sprintf(`package routes
 
 import (
-	"%s/api/internal/modules/health"
+	"%s/api/internal/service"
 
 	"github.com/gofiber/fiber/v3"
 	"gorm.io/gorm"
 )
 
+// Setup initializes the root API routes and mounts service endpoints.
 func Setup(app *fiber.App, db *gorm.DB) {
-	api := app.Group("/api/v1")
+	const prefix = "/api/v1"
+	api := app.Group(prefix)
 
-	// Mount health module
-	healthService := health.NewService()
-	healthHandler := health.NewHandler(healthService)
-	health.RegisterRoutes(api, healthHandler)
+	// Baseline services
+	healthSvc := service.NewHealthService(db)
+
+	// Mount routes
+	registerHealthRoutes(api, healthSvc)
 }
 `, moduleName)
 	if err := writeFile(filepath.Join(apiDir, "internal", "routes", "routes.go"), routesContent); err != nil {
@@ -482,7 +423,7 @@ export default nextConfig;
 	pageTSX := `export default function Home() {
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-24">
-      <h1 className="text-4xl font-bold mb-4">🦠 Amoeba Framework</h1>
+      <h1 className="text-4xl font-bold mb-4">⚡ Amoeba Framework</h1>
       <p className="text-gray-600">Go Fiber v3 Backend + Next.js Frontend</p>
     </main>
   );
@@ -542,7 +483,7 @@ export default defineConfig({
 	appTSX := `export default function App() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', fontFamily: 'sans-serif' }}>
-      <h1>🦠 Amoeba Framework</h1>
+      <h1>⚡ Amoeba Framework</h1>
       <p>Go Fiber v3 Backend + React (Vite) Frontend</p>
     </div>
   );
@@ -611,16 +552,16 @@ func writeTauriTemplate(baseDir, projectName string) error {
 }
 
 func writeRootFiles(baseDir string, opts Options) error {
-	readme := fmt.Sprintf(`# %s (Built with Amoeba Framework 🦠)
+	readme := fmt.Sprintf(`# %s (Built with Amoeba Framework ⚡)
 
 A high-performance full-stack application.
 
-## 📁 Apps
+## 🚀 Apps
 
 - **Backend**: `+"`apps/api`"+` (Go Fiber v3)
 - **Frontend**: `+"`apps/web`"+` (%s)
 
-## 🚀 Getting Started
+## 🛠 Getting Started
 
 ### 1. Start the API Server
 `+"```bash"+`

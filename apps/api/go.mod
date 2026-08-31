@@ -2,7 +2,11 @@ module local/amoeba
 
 go 1.27.0
 
-require github.com/gofiber/fiber/v3 v3.5.0
+require (
+	github.com/gofiber/fiber/v3 v3.5.0
+	gorm.io/driver/postgres v1.6.2
+	gorm.io/gorm v1.31.2
+)
 
 require (
 	github.com/andybalholm/brotli v1.2.3 // indirect
@@ -27,6 +31,4 @@ require (
 	golang.org/x/sync v0.22.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect
 	golang.org/x/text v0.41.0 // indirect
-	gorm.io/driver/postgres v1.6.2 // indirect
-	gorm.io/gorm v1.31.2 // indirect
 )

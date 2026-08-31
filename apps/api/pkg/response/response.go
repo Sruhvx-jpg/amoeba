@@ -8,8 +8,15 @@ type Body struct {
 	Error   string `json:"error,omitempty"`
 }
 
-func Success(c fiber.Ctx, data any) error {
+func OK(c fiber.Ctx, data any) error {
 	return c.Status(fiber.StatusOK).JSON(Body{
+		Success: true,
+		Data:    data,
+	})
+}
+
+func Created(c fiber.Ctx, data any) error {
+	return c.Status(fiber.StatusCreated).JSON(Body{
 		Success: true,
 		Data:    data,
 	})

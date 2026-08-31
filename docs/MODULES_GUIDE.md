@@ -1,158 +1,182 @@
-# Amoeba Framework Architecture & Module Guide
+# Amoeba Framework Architecture Guide
 
 Welcome to **Amoeba Framework** — an opinionated, high-performance full-stack framework pairing Go (Fiber v3) systems speed with modern frontend ecosystems.
 
 ---
 
-## 🏛 Core Architecture Principles
+## ⚡ Core Architecture Principles
 
-1. **Feature-Based Modular Design**: Code is grouped by business domain (e.g. `internal/modules/auth`, `internal/modules/users`, `internal/modules/health`), not arbitrary horizontal slices.
-2. **Layered Separation of Concerns**:
-   - **Routes**: Defines URL endpoints and maps them to handler methods.
-   - **Handler**: The HTTP controller. Parses inputs, delegates to the Service, and returns standardized responses using `BaseHandler`.
-   - **Service**: 100% Pure Go business logic. Zero HTTP/Fiber dependencies. Returns `(Data, error)`.
-   - **Middleware**: Module-scoped or global request interceptors.
+1. **Unidirectional Dependency Flow (DAG)**: Code dependencies flow strictly in one direction:
+   `cmd/server` ➔ `internal/routes` ➔ `internal/service` ➔ `internal/types`, `internal/schema` & `internal/database`.
+   Zero circular package imports.
+2. **Lean Layering**:
+   - **`internal/types`**: Pure Go struct definitions (Request DTOs, Response DTOs, Enums). Zero internal dependencies.
+   - **`internal/schema`**: Leaf package holding GORM structs and `Migrate(db)`.
+   - **`internal/service`**: Pure Go business logic and database queries using `gorm.DB`. Zero HTTP/Fiber dependencies.
+   - **`internal/routes`**: HTTP route definitions and handlers using Fiber v3 and direct `pkg/response` helpers.
+   - **`pkg/response`**: Allocation-free JSON envelope helpers (`OK`, `Created`, `Error`).
 3. **Standard Response Contract**: All endpoints produce `{ "success": boolean, "data": ..., "error": ... }`.
 
 ---
 
-## 🚀 How to Create a New Module (Step-by-Step)
+## 🛠 Adding a New Feature (Example: Notes)
 
-Let's walk through creating a `users` module.
-
-### Step 1: Create Module Directory
-```bash
-mkdir -p internal/modules/users
-```
-
-### Step 2: Write the Pure Go Service (`internal/modules/users/service.go`)
-The service holds business logic and database operations. Never import Fiber here!
-
+### Step 1: Define DTOs in Types (`internal/types/note.go`)
 ```go
-package users
+package types
 
-import "errors"
-
-type User struct {
-	ID    string `json:"id"`
-	Name  string `json:"name"`
-	Email string `json:"email"`
-}
-
-type Service struct{}
-
-func NewService() *Service {
-	return &Service{}
-}
-
-func (s *Service) GetUserByID(id string) (*User, error) {
-	if id == "" {
-		return nil, errors.New("user ID is required")
-	}
-	// In the future: DB query here
-	return &User{
-		ID:    id,
-		Name:  "Dron",
-		Email: "dron@example.com",
-	}, nil
+type CreateNoteInput struct {
+	Title   string `json:"title"`
+	Content string `json:"content"`
 }
 ```
 
 ---
 
-### Step 3: Write the HTTP Handler (`internal/modules/users/handler.go`)
-The handler parses HTTP params/body and uses `handler.NewBaseHandler(c)` to send responses.
-
+### Step 2: Define GORM Schema (`internal/schema/note.go`)
 ```go
-package users
+package schema
 
 import (
-	"local/amoeba/pkg/handler"
-	"github.com/gofiber/fiber/v3"
+	"time"
+
+	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
-type Handler struct {
-	service *Service
+type Note struct {
+	ID        uuid.UUID      `gorm:"type:uuid;primaryKey" json:"id"`
+	Title     string         `gorm:"type:varchar(200);not null" json:"title"`
+	Content   string         `gorm:"type:text;not null" json:"content"`
+	CreatedAt time.Time      `gorm:"autoCreateTime" json:"created_at"`
+	UpdatedAt time.Time      `gorm:"autoUpdateTime" json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
 }
 
-func NewHandler(service *Service) *Handler {
-	return &Handler{service: service}
+func (Note) TableName() string {
+	return "notes"
 }
 
-func (h *Handler) GetUser(c fiber.Ctx) error {
-	b := handler.NewBaseHandler(c)
-	id := b.Params("id")
-
-	user, err := h.service.GetUserByID(id)
-	if err != nil {
-		return b.Error(fiber.StatusNotFound, err.Error())
+func (n *Note) BeforeCreate(tx *gorm.DB) error {
+	if n.ID == uuid.Nil {
+		n.ID = uuid.New()
 	}
+	return nil
+}
+```
 
-	return b.Success(user)
+Register it in `internal/schema/schema.go`:
+```go
+package schema
+
+import "gorm.io/gorm"
+
+func Migrate(db *gorm.DB) error {
+	return db.AutoMigrate(
+		&Note{},
+	)
 }
 ```
 
 ---
 
-### Step 4: Write Module-Scoped Middleware (`internal/modules/users/middleware.go`)
-Create middlewares tailored for this specific module (e.g. auth checks, role guards, validation).
-
+### Step 3: Implement Service (`internal/service/note.go`)
 ```go
-package users
+package service
 
 import (
-	"local/amoeba/pkg/handler"
+	"context"
+	"errors"
+
+	"local/amoeba/internal/schema"
+	"local/amoeba/internal/types"
+
+	"github.com/google/uuid"
+	"gorm.io/gorm"
+)
+
+type NoteService struct {
+	db *gorm.DB
+}
+
+func NewNoteService(db *gorm.DB) *NoteService {
+	return &NoteService{db: db}
+}
+
+func (s *NoteService) Create(ctx context.Context, input types.CreateNoteInput) (*schema.Note, error) {
+	if input.Title == "" {
+		return nil, errors.New("title is required")
+	}
+
+	note := &schema.Note{
+		Title:   input.Title,
+		Content: input.Content,
+	}
+
+	if err := s.db.WithContext(ctx).Create(note).Error; err != nil {
+		return nil, err
+	}
+	return note, nil
+}
+```
+
+---
+
+### Step 4: Register HTTP Routes (`internal/routes/note.go`)
+```go
+package routes
+
+import (
+	"local/amoeba/internal/service"
+	"local/amoeba/internal/types"
+	"local/amoeba/pkg/response"
+
 	"github.com/gofiber/fiber/v3"
 )
 
-func AuthGuard() fiber.Handler {
-	return func(c fiber.Ctx) error {
-		token := c.Get("Authorization")
-		if token == "" {
-			b := handler.NewBaseHandler(c)
-			return b.Error(fiber.StatusUnauthorized, "Missing authorization header")
+func registerNoteRoutes(router fiber.Router, noteSvc *service.NoteService) {
+	const path = "/notes"
+	notes := router.Group(path)
+
+	notes.Post("/", func(c fiber.Ctx) error {
+		var input types.CreateNoteInput
+		if err := c.Bind().Body(&input); err != nil {
+			return response.Error(c, fiber.StatusBadRequest, "invalid request body")
 		}
-		return c.Next()
-	}
+
+		note, err := noteSvc.Create(c.Context(), input)
+		if err != nil {
+			return response.Error(c, fiber.StatusUnprocessableEntity, err.Error())
+		}
+
+		return response.Created(c, note)
+	})
 }
 ```
 
 ---
 
-### Step 5: Register Routes (`internal/modules/users/routes.go`)
-Wire up the routes and apply module middlewares.
-
+### Step 5: Wire in `internal/routes/routes.go`
 ```go
-package users
+package routes
 
-import "github.com/gofiber/fiber/v3"
+import (
+	"local/amoeba/internal/service"
 
-func RegisterRoutes(r fiber.Router, h *Handler) {
-	users := r.Group("/users")
+	"github.com/gofiber/fiber/v3"
+	"gorm.io/gorm"
+)
 
-	// Apply module middleware
-	users.Use(AuthGuard())
+func Setup(app *fiber.App, db *gorm.DB) {
+	const prefix = "/api/v1"
+	api := app.Group(prefix)
 
-	// Route definitions
-	users.Get("/:id", h.GetUser)
+	// Services
+	healthSvc := service.NewHealthService(db)
+	noteSvc := service.NewNoteService(db)
+
+	// Routes
+	registerHealthRoutes(api, healthSvc)
+	registerNoteRoutes(api, noteSvc)
 }
 ```
-
----
-
-### Step 6: Mount in `cmd/server/main.go`
-Mount the module in the main server bootstrap:
-
-```go
-// cmd/server/main.go
-usersService := users.NewService()
-usersHandler := users.NewHandler(usersService)
-users.RegisterRoutes(api, usersHandler)
-```
-
----
-
-## 🛠 Shared Packages
-
-* `pkg/handler/basehandler.go`: Wraps `fiber.Ctx` with `.Success(data)` and `.Error(status, msg)`.
-* `pkg/response/response.go`: Standardized `{ success, data, error }` JSON response builder.
