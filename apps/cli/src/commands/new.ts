@@ -67,6 +67,19 @@ export async function handleNewCommand(projectNameArg: string | undefined, optio
   // 1. Display ASCII Banner
   printBanner("0.1.0");
 
+  const isInteractive = Boolean(process.stdin.isTTY && process.stdout.isTTY);
+
+  // If non-interactive and missing arguments, exit with instructions
+  if (!isInteractive && (!projectNameArg || !options.db || !options.frontend)) {
+    console.error(
+      pc.red("Error: Non-interactive environment detected. All options must be provided via flags:")
+    );
+    console.error(
+      pc.yellow("  amoeba new <project-name> --db <gorm|mongo> --frontend <nextjs|tauri|react|api-only> [-t <tauri-template>]\n")
+    );
+    process.exit(1);
+  }
+
   p.intro(pc.bgCyan(pc.black(" ✨ Project Setup Wizard ")));
 
   // STEP 1: Project Name
