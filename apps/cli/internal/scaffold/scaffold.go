@@ -19,6 +19,7 @@ func GenerateProject(opts Options) error {
 		filepath.Join(baseDir, "apps", "api", "cmd", "server"),
 		filepath.Join(baseDir, "apps", "api", "internal", "config"),
 		filepath.Join(baseDir, "apps", "api", "internal", "database"),
+		filepath.Join(baseDir, "apps", "api", "internal", "routes"),
 		filepath.Join(baseDir, "apps", "api", "internal", "schema"),
 		filepath.Join(baseDir, "apps", "api", "internal", "modules", "health"),
 		filepath.Join(baseDir, "apps", "api", "pkg", "handler"),
@@ -361,6 +362,29 @@ func Middleware() fiber.Handler {
 		return err
 	}
 
+	// routes/routes.go
+	routesContent := fmt.Sprintf(`package routes
+
+import (
+	"%s/api/internal/modules/health"
+
+	"github.com/gofiber/fiber/v3"
+	"gorm.io/gorm"
+)
+
+func Setup(app *fiber.App, db *gorm.DB) {
+	api := app.Group("/api/v1")
+
+	// Mount health module
+	healthService := health.NewService()
+	healthHandler := health.NewHandler(healthService)
+	health.RegisterRoutes(api, healthHandler)
+}
+`, moduleName)
+	if err := writeFile(filepath.Join(apiDir, "internal", "routes", "routes.go"), routesContent); err != nil {
+		return err
+	}
+
 	// cmd/server/main.go
 	mainContent := fmt.Sprintf(`package main
 
@@ -369,7 +393,7 @@ import (
 
 	"%s/api/internal/config"
 	"%s/api/internal/database"
-	"%s/api/internal/modules/health"
+	"%s/api/internal/routes"
 	"%s/api/internal/schema"
 
 	"github.com/gofiber/fiber/v3"
@@ -395,12 +419,8 @@ func main() {
 		AppName: "%s API",
 	})
 
-	api := app.Group("/api/v1")
-
-	// Mount health module
-	healthService := health.NewService()
-	healthHandler := health.NewHandler(healthService)
-	health.RegisterRoutes(api, healthHandler)
+	// Mount all routes
+	routes.Setup(app, db)
 
 	log.Printf("⚡ Amoeba API server running on port %%s", cfg.Port)
 	log.Fatal(app.Listen(":" + cfg.Port))

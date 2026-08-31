@@ -5,7 +5,7 @@ import (
 
 	"local/amoeba/internal/config"
 	"local/amoeba/internal/database"
-	"local/amoeba/internal/modules/health"
+	"local/amoeba/internal/routes"
 	"local/amoeba/internal/schema"
 
 	"github.com/gofiber/fiber/v3"
@@ -31,12 +31,8 @@ func main() {
 		AppName: "Amoeba API",
 	})
 
-	api := app.Group("/api/v1")
-
-	// Initialize and mount health module
-	healthService := health.NewService()
-	healthHandler := health.NewHandler(healthService)
-	health.RegisterRoutes(api, healthHandler)
+	// Mount all routes
+	routes.Setup(app, db)
 
 	log.Printf("⚡ Amoeba API server running on port %s", cfg.Port)
 	log.Fatal(app.Listen(":" + cfg.Port))
