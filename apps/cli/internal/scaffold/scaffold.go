@@ -384,11 +384,11 @@ func main() {
 	// Database connection & Auto-migration
 	db, err := database.Connect(cfg)
 	if err != nil {
-		log.Printf("⚠️  Database connection warning: %%v (running without DB)", err)
-	} else {
-		if err := schema.Migrate(db); err != nil {
-			log.Fatalf("failed to auto-migrate schemas: %%v", err)
-		}
+		log.Fatalf("failed to connect to database: %%v", err)
+	}
+
+	if err := schema.Migrate(db); err != nil {
+		log.Fatalf("failed to auto-migrate schemas: %%v", err)
 	}
 
 	app := fiber.New(fiber.Config{
