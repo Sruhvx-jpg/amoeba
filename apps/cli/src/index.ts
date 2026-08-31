@@ -1,5 +1,7 @@
 import { Command } from "commander";
 import { handleNewCommand } from "./commands/new.js";
+import { handleUpdateCommand } from "./commands/update.js";
+import { getBannerText } from "./ui/banner.js";
 import type { CLIOptions } from "./types.js";
 
 const program = new Command();
@@ -7,7 +9,8 @@ const program = new Command();
 program
   .name("amoeba")
   .description("⚡ Amoeba Framework CLI - Scaffolding fullstack Go + Frontend apps")
-  .version("0.1.0");
+  .version("0.1.0")
+  .addHelpText("beforeAll", getBannerText("0.1.0"));
 
 program
   .command("new", { isDefault: true })
@@ -17,6 +20,13 @@ program
   .option("-d, --db <database>", "Database engine (gorm, mongo)")
   .action(async (projectName: string | undefined, options: CLIOptions) => {
     await handleNewCommand(projectName, options);
+  });
+
+program
+  .command("update")
+  .description("Update dependencies across the Amoeba project (Go backend & Frontend)")
+  .action(async () => {
+    await handleUpdateCommand();
   });
 
 program.parse(process.argv);
