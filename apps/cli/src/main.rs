@@ -24,9 +24,12 @@ fn main() {
         Some(Commands::Build(args)) => commands::build::handle_build_command(args),
         Some(Commands::Start(args)) => commands::start::handle_start_command(args),
         Some(Commands::Db(args)) => commands::db::handle_db_command(args.command),
+        Some(Commands::Generate) => commands::db::handle_db_command(cli::DbSubcommand::Generate),
+        Some(Commands::Migrate) => commands::db::handle_db_command(cli::DbSubcommand::Migrate),
+        Some(Commands::Studio) => commands::db::handle_db_command(cli::DbSubcommand::Studio),
         Some(Commands::Update) => commands::update::handle_update_command(),
         Some(Commands::Version) => {
-            println!("amoeba proteus v0.2.2");
+            println!("amoeba proteus v{}", env!("CARGO_PKG_VERSION"));
             Ok(())
         }
         None => {

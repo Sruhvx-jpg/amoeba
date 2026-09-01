@@ -4,7 +4,7 @@ use clap::{Parser, Subcommand};
 #[command(
     name = "amoeba",
     author = "dron",
-    version = "0.2.2",
+    version = env!("CARGO_PKG_VERSION"),
     about = "⚡ Amoeba Proteus CLI - Rapid scaffolding, building & server engine for Go & TypeScript fullstack systems",
     long_about = "A high-performance CLI tool for scaffolding, building, and running production-ready fullstack architectures.\nSupports Go Fiber v3, TypeScript Express Modular REST, and tRPC Turborepo Monorepos."
 )]
@@ -24,6 +24,12 @@ pub enum Commands {
     Start(StartArgs),
     /// Database management utilities (generate, migrate, studio)
     Db(DbArgs),
+    /// Generate database migrations or schema artifacts (alias for 'db generate')
+    Generate,
+    /// Apply pending database schema migrations (alias for 'db migrate')
+    Migrate,
+    /// Open interactive database studio / GUI (alias for 'db studio')
+    Studio,
     /// Check for Amoeba framework releases and upgrade project dependencies
     Update,
     /// Print version information

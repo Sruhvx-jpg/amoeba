@@ -17,7 +17,7 @@ use crate::scaffold::ts_rest_api::write_ts_rest_api_files;
 use crate::types::*;
 use crate::utils::project::detect_package_manager;
 
-const CLI_VERSION: &str = "0.2.2";
+const CLI_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub fn handle_new_command(args: NewArgs) -> Result<()> {
     print_banner(CLI_VERSION);

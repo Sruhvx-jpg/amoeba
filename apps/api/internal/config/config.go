@@ -8,6 +8,7 @@ import (
 
 type Config struct {
 	Port        string
+	DatabaseURL string
 	DatabaseUrl string
 	JWTSecret   string
 	Environment string
@@ -62,6 +63,7 @@ func Load() (*Config, error) {
 
 	return &Config{
 		Port:        port,
+		DatabaseURL: dbUrl,
 		DatabaseUrl: dbUrl,
 		JWTSecret:   jwtSecret,
 		Environment: env,

@@ -305,6 +305,52 @@ func Setup(app *fiber.App, db *gorm.DB) {{
     );
     write_file(api_dir.join("internal/routes/routes.go"), &routes_go)?;
 
+    // cmd/migrate/main.go
+    let migrate_go = format!(
+        r#"package main
+
+import (
+	"fmt"
+	"log"
+	"os"
+
+	"{module_name}/api/internal/config"
+	"{module_name}/api/internal/database"
+	"{module_name}/api/internal/schema"
+)
+
+func main() {{
+	cfg, err := config.Load()
+	if err != nil {{
+		log.Fatalf("failed to load config: %v", err)
+	}}
+
+	db, err := database.Connect(cfg)
+	if err != nil {{
+		fmt.Fprintf(os.Stderr, "\n%s\n", "❌ Amoeba Database Connection Error:")
+		fmt.Fprintf(os.Stderr, "   Could not establish a connection to PostgreSQL.\n\n")
+		fmt.Fprintf(os.Stderr, "   • Required Variable: %s\n", "DATABASE_URL")
+		if cfg.DatabaseURL == "" {{
+			fmt.Fprintf(os.Stderr, "   • Current Value:     %s\n", "<empty>")
+		}} else {{
+			fmt.Fprintf(os.Stderr, "   • Current Value:     %s\n", cfg.DatabaseURL)
+		}}
+		fmt.Fprintf(os.Stderr, "   • Expected Format:   %s\n", "postgres://username:password@localhost:5432/dbname?sslmode=disable")
+		fmt.Fprintf(os.Stderr, "   • How to fix:        Set DATABASE_URL in 'apps/api/.env' and ensure PostgreSQL is running.\n\n")
+		os.Exit(1)
+	}}
+
+	log.Printf("Connecting to PostgreSQL at %s ...", cfg.DatabaseURL)
+	if err := schema.Migrate(db); err != nil {{
+		log.Fatalf("failed to auto-migrate schemas: %v", err)
+	}}
+
+	log.Println("✔ Database migrations applied successfully")
+}}
+"#
+    );
+    write_file(api_dir.join("cmd/migrate/main.go"), &migrate_go)?;
+
     // cmd/server/main.go
     let main_go = format!(
         r#"package main

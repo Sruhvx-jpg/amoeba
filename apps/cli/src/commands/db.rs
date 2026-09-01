@@ -11,7 +11,7 @@ use crate::banner::print_banner;
 use crate::cli::DbSubcommand;
 use crate::utils::project::{detect_project, ApiComponent, ProjectKind};
 
-const CLI_VERSION: &str = "0.2.2";
+const CLI_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub fn handle_db_command(sub: DbSubcommand) -> Result<()> {
     print_banner(CLI_VERSION);
@@ -125,13 +125,46 @@ fn handle_generate(api: &ApiComponent) -> Result<()> {
         }
 
         ApiComponent::Go { .. } => {
-            println!("{} Go Fiber with GORM uses code-first auto-migrations.", "ℹ".cyan().bold());
-            println!("  Schema file: {}", api_dir.join("internal/schema/schema.go").display().to_string().cyan());
-            println!("  Register your models inside {} in Migrate(db *gorm.DB).", "schema.go".yellow());
+            let schema_file = api_dir.join("internal/schema/schema.go");
+            let is_gorm = schema_file.exists();
+
+            if is_gorm {
+                println!("{} Validating Go GORM schema definitions...", "•".cyan().bold());
+                let pb = ProgressBar::new_spinner();
+                pb.set_style(
+                    ProgressStyle::default_spinner()
+                        .tick_chars("⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏ ")
+                        .template("{spinner:.cyan} {msg}")?,
+                );
+                pb.set_message("Verifying schema type soundness with 'go vet'...");
+
+                let status = Command::new("go")
+                    .args(["vet", "./internal/schema/..."])
+                    .current_dir(api_dir)
+                    .status();
+
+                match status {
+                    Ok(s) if s.success() => {
+                        pb.finish_with_message(format!("{}", "✔ Go GORM schema types verified".green().bold()));
+                    }
+                    _ => {
+                        pb.finish_with_message(format!("{}", "⚠ Go schema check had warnings/errors".yellow().bold()));
+                    }
+                }
+
+                ensure_go_migrate_entrypoint(api_dir)?;
+
+                println!("\n  {} {}", "• Schema File:".cyan().bold(), schema_file.display().to_string().white());
+                println!("  {} GORM uses code-first auto-migrations.", "ℹ".cyan());
+                println!("  {} Register models in {} inside Migrate(db *gorm.DB).", "ℹ".cyan(), "schema.go".yellow());
+                println!("  {} Run '{}' to apply schema to PostgreSQL.\n", "ℹ".cyan(), "amoeba db migrate".cyan().bold());
+            } else {
+                println!("{} Go Mongo service uses code-first document definitions.", "ℹ".cyan().bold());
+            }
         }
     }
 
-    println!("\n{} Completed in {:.2?}\n", "✔".green().bold(), start_time.elapsed());
+    println!("{} Completed in {:.2?}\n", "✔".green().bold(), start_time.elapsed());
     Ok(())
 }
 
@@ -185,6 +218,8 @@ fn handle_migrate(api: &ApiComponent) -> Result<()> {
         }
 
         ApiComponent::Go { .. } => {
+            ensure_go_migrate_entrypoint(api_dir)?;
+
             println!("{} Executing GORM schema auto-migration...", "•".cyan().bold());
             let pb = ProgressBar::new_spinner();
             pb.set_style(
@@ -195,22 +230,91 @@ fn handle_migrate(api: &ApiComponent) -> Result<()> {
             pb.set_message("Connecting to database and running schema migrations...");
 
             let status = Command::new("go")
-                .args(["run", "./cmd/server/main.go"])
+                .args(["run", "./cmd/migrate/main.go"])
                 .current_dir(api_dir)
-                .status();
+                .status()
+                .with_context(|| "Failed to execute Go migration runner (cmd/migrate/main.go)")?;
 
-            match status {
-                Ok(s) if s.success() => {
-                    pb.finish_with_message(format!("{}", "✔ GORM auto-migration verified".green().bold()));
-                }
-                _ => {
-                    pb.finish_with_message(format!("{}", "ℹ Server startup stopped".yellow()));
-                }
+            if !status.success() {
+                pb.finish_with_message(format!("{}", "❌ Migration execution failed".red().bold()));
+                print_db_troubleshooting_hint(api_dir);
+                bail!("Go migration runner exited with code {:?}", status.code());
             }
+
+            pb.finish_with_message(format!("{}", "✔ Database migrations applied successfully".green().bold()));
         }
     }
 
     println!("\n{} Migration step completed in {:.2?}\n", "✔".green().bold(), start_time.elapsed());
+    Ok(())
+}
+
+fn ensure_go_migrate_entrypoint(api_dir: &Path) -> Result<()> {
+    let migrate_dir = api_dir.join("cmd").join("migrate");
+    let migrate_file = migrate_dir.join("main.go");
+
+    if !migrate_file.exists() {
+        let go_mod_path = api_dir.join("go.mod");
+        let module_name = if let Ok(content) = fs::read_to_string(&go_mod_path) {
+            content
+                .lines()
+                .find(|l| l.starts_with("module "))
+                .and_then(|l| l.strip_prefix("module "))
+                .map(|m| m.trim().to_string())
+                .unwrap_or_else(|| "local/amoeba".to_string())
+        } else {
+            "local/amoeba".to_string()
+        };
+
+        fs::create_dir_all(&migrate_dir)?;
+
+        let content = format!(
+            r#"package main
+
+import (
+	"fmt"
+	"log"
+	"os"
+
+	"{module_name}/internal/config"
+	"{module_name}/internal/database"
+	"{module_name}/internal/schema"
+)
+
+func main() {{
+	cfg, err := config.Load()
+	if err != nil {{
+		log.Fatalf("failed to load config: %v", err)
+	}}
+
+	db, err := database.Connect(cfg)
+	if err != nil {{
+		fmt.Fprintf(os.Stderr, "\n%s\n", "❌ Amoeba Database Connection Error:")
+		fmt.Fprintf(os.Stderr, "   Could not establish a connection to PostgreSQL.\n\n")
+		fmt.Fprintf(os.Stderr, "   • Required Variable: %s\n", "DATABASE_URL")
+		if cfg.DatabaseURL == "" {{
+			fmt.Fprintf(os.Stderr, "   • Current Value:     %s\n", "<empty>")
+		}} else {{
+			fmt.Fprintf(os.Stderr, "   • Current Value:     %s\n", cfg.DatabaseURL)
+		}}
+		fmt.Fprintf(os.Stderr, "   • Expected Format:   %s\n", "postgres://username:password@localhost:5432/dbname?sslmode=disable")
+		fmt.Fprintf(os.Stderr, "   • How to fix:        Set DATABASE_URL in 'apps/api/.env' and ensure PostgreSQL is running.\n\n")
+		os.Exit(1)
+	}}
+
+	log.Printf("Connecting to PostgreSQL at %s ...", cfg.DatabaseURL)
+	if err := schema.Migrate(db); err != nil {{
+		log.Fatalf("failed to auto-migrate schemas: %v", err)
+	}}
+
+	log.Println("✔ Database migrations applied successfully")
+}}
+"#
+        );
+
+        fs::write(&migrate_file, content)?;
+    }
+
     Ok(())
 }
 

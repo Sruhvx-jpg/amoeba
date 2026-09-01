@@ -39,7 +39,7 @@ export const Footer: React.FC = () => {
                 CLI
               </span>
               <span className="text-[10px] px-2 py-0.5 border border-white/10 bg-white/5 text-zinc-400">
-                v0.2.2 · Proteus
+                v0.2.3 · Proteus
               </span>
             </div>
 

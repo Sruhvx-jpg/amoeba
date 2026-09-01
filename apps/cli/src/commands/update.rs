@@ -8,7 +8,7 @@ use crate::banner::print_banner;
 use crate::utils::fs::path_exists;
 use crate::utils::release::check_latest_release;
 
-const CLI_VERSION: &str = "0.2.2";
+const CLI_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub fn handle_update_command() -> Result<()> {
     print_banner(CLI_VERSION);
