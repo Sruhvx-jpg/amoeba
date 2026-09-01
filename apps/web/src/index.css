@@ -50,7 +50,7 @@
   text-transform: uppercase;
 }
 
-.font-mono-hw {
+.font-mono {
   font-family: 'Courier Prime', 'JetBrains Mono', monospace;
   text-transform: uppercase;
 }
@@ -62,8 +62,8 @@
   margin-right: auto;
   width: 1300px;
   max-width: 100%;
-  border-left: 1px dashed rgba(255, 255, 255, 0.1);
-  border-right: 1px dashed rgba(255, 255, 255, 0.1);
+  border-left: 1px dashed rgba(255, 255, 255, 0.12);
+  border-right: 1px dashed rgba(255, 255, 255, 0.12);
   position: relative;
 }
 
@@ -80,21 +80,6 @@
     transparent 50%
   );
   background-size: 8px 8px;
-}
-
-/* Subtle procedural grain */
-.amoeba-grain {
-  background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 0);
-  background-size: 18px 18px;
-}
-
-/* Outer frame */
-.amoeba-frame {
-  position: fixed;
-  inset: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  pointer-events: none;
-  z-index: 100;
 }
 
 /* Custom Scrollbars */

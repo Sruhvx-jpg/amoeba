@@ -9,34 +9,28 @@ import { Footer } from './components/Footer';
 export default function App() {
   return (
     <div className="min-h-screen bg-[#08090e] text-[#f8fafc] relative selection:bg-[#00f0ff] selection:text-[#08090e] overflow-x-hidden">
-      {/* Subtle Viewport Outer Frame */}
-      <div className="amoeba-frame hidden lg:block" aria-hidden="true" />
-
-      {/* Procedural Micro-Grain Overlay */}
-      <div className="fixed inset-0 pointer-events-none amoeba-grain opacity-20 z-0" />
-
       {/* Navigation */}
       <Navbar />
 
-      {/* Hero Section */}
+      {/* Hero Section (Left-aligned Hermes Editorial + Right ASCII Visuals) */}
       <Hero />
 
-      {/* Impact Metrics Bar */}
+      {/* WeMakeDevs 4-Column Impact Metrics Bar */}
       <MetricsBar />
 
-      {/* Diagonal Pattern Divider */}
+      {/* Pattern Divider */}
       <div className="grid-divider-pattern" />
 
-      {/* Interactive Amoeba CLI Emulator */}
+      {/* Section 02: Interactive CLI Emulator (Real Inquire CLI Flow) */}
       <CliEmulator />
 
-      {/* Diagonal Pattern Divider */}
+      {/* Pattern Divider */}
       <div className="grid-divider-pattern" />
 
-      {/* Installation & Source Section */}
+      {/* Section 03: Installation & Source (Real Working Methods: curl, git clone, cargo) */}
       <InstallSection />
 
-      {/* Footer */}
+      {/* Section 04: Minimal Clean Footer */}
       <Footer />
     </div>
   );
