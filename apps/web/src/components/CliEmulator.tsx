@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Terminal as TerminalIcon, Play, RotateCcw, Copy, Check, ChevronRight, CornerDownLeft, Sparkles, Folder, FileCode } from 'lucide-react';
-import confetti from 'canvas-confetti';
+import { Terminal as TerminalIcon, Play, RotateCcw, Copy, Check, CornerDownLeft, Sparkles } from 'lucide-react';
 
 const BANNER_ART = `  █████╗ ███╗   ███╗ ██████╗ ███████╗██████╗  █████╗ 
  ██╔══██╗████╗ ████║██╔═══██╗██╔════╝██╔══██╗██╔══██╗
@@ -24,24 +23,23 @@ interface Config {
 export const CliEmulator: React.FC = () => {
   const [step, setStep] = useState<Step>('idle');
   const [inputVal, setInputVal] = useState('my-app');
-  const [selectedIndex, setSelectedIndex] = useState(0);
   const [logs, setLogs] = useState<Array<{ text: string; color?: string; bold?: boolean }>>([]);
   const [config, setConfig] = useState<Config>({
     projectName: 'my-app',
     lang: 'go',
   });
-  const [spinnerText, setSpinnerText] = useState('');
   const [copied, setCopied] = useState(false);
-  const terminalEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const terminalBodyRef = useRef<HTMLDivElement>(null);
 
-  const scrollToBottom = () => {
-    terminalEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  const scrollInternalTerminal = () => {
+    if (terminalBodyRef.current) {
+      terminalBodyRef.current.scrollTop = terminalBodyRef.current.scrollHeight;
+    }
   };
 
   useEffect(() => {
-    scrollToBottom();
-  }, [logs, step, spinnerText]);
+    scrollInternalTerminal();
+  }, [logs, step]);
 
   const startCli = (customName?: string) => {
     setLogs([
@@ -61,7 +59,6 @@ export const CliEmulator: React.FC = () => {
       { text: `✔ Project Name: ${name}`, color: 'text-emerald-400', bold: true },
       { text: '\n[1/4] Choose backend language:', color: 'text-cyan-400', bold: true },
     ]);
-    setSelectedIndex(0);
     setStep('lang');
   };
 
@@ -80,14 +77,12 @@ export const CliEmulator: React.FC = () => {
           ...prev,
           { text: '\n[2/4] Choose database engine:', color: 'text-cyan-400', bold: true },
         ]);
-        setSelectedIndex(0);
         setStep('go_db');
       } else {
         setLogs((prev) => [
           ...prev,
           { text: '\n[2/4] Choose TypeScript architecture:', color: 'text-cyan-400', bold: true },
         ]);
-        setSelectedIndex(0);
         setStep('ts_arch');
       }
     } else if (type === 'go_db') {
@@ -99,7 +94,6 @@ export const CliEmulator: React.FC = () => {
         { text: `✔ Database: ${dbChoice}`, color: 'text-emerald-400', bold: true },
         { text: '\n[3/4] Choose frontend application:', color: 'text-cyan-400', bold: true },
       ]);
-      setSelectedIndex(0);
       setStep('frontend');
     } else if (type === 'ts_arch') {
       const isRest = optIndex === 0;
@@ -115,14 +109,12 @@ export const CliEmulator: React.FC = () => {
           ...prev,
           { text: '\n[3/4] Choose database ORM setup:', color: 'text-cyan-400', bold: true },
         ]);
-        setSelectedIndex(0);
         setStep('ts_rest_db');
       } else {
         setLogs((prev) => [
           ...prev,
           { text: '\n[3/4] Choose frontend application(s) for tRPC monorepo:', color: 'text-cyan-400', bold: true },
         ]);
-        setSelectedIndex(0);
         setStep('monorepo_fe');
       }
     } else if (type === 'ts_rest_db') {
@@ -134,11 +126,10 @@ export const CliEmulator: React.FC = () => {
         { text: `✔ Database: ${dbChoice}`, color: 'text-emerald-400', bold: true },
         { text: '\n[4/4] Choose frontend application:', color: 'text-cyan-400', bold: true },
       ]);
-      setSelectedIndex(0);
       setStep('frontend');
     } else if (type === 'frontend') {
       const feOptions = ['nextjs', 'react', 'tauri', 'none'] as const;
-      const feLabels = ['Next.js 15 (App Router)', 'React (Vite)', 'Tauri 2.0 (Rust Desktop)', 'API Only (No Frontend)'];
+      const feLabels = ['Next.js 15 (App Router)', 'React (Vite)', 'Tauri 2.0 (Desktop)', 'API Only (No Frontend)'];
       const feChoice = feOptions[optIndex];
       setConfig((prev) => ({ ...prev, frontend: feChoice }));
       setLogs((prev) => [
@@ -151,7 +142,6 @@ export const CliEmulator: React.FC = () => {
           ...prev,
           { text: '\nChoose desktop UI framework:', color: 'text-cyan-400', bold: true },
         ]);
-        setSelectedIndex(0);
         setStep('tauri_flavor');
       } else {
         triggerScaffold();
@@ -179,27 +169,9 @@ export const CliEmulator: React.FC = () => {
 
   const triggerScaffold = () => {
     setStep('scaffolding');
-    setSpinnerText('Allocating project root...');
-
-    const spinnerFrames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
-    let frame = 0;
-    const interval = setInterval(() => {
-      frame = (frame + 1) % spinnerFrames.length;
-      setSpinnerText(`${spinnerFrames[frame]} Writing sound line-of-sight files...`);
-    }, 80);
-
     setTimeout(() => {
-      clearInterval(interval);
-      setSpinnerText('');
       setStep('done');
-
-      confetti({
-        particleCount: 60,
-        spread: 60,
-        origin: { y: 0.6 },
-        colors: ['#00f0ff', '#3b82f6', '#10b981', '#ffffff'],
-      });
-    }, 1200);
+    }, 450);
   };
 
   const resetTerminal = () => {
@@ -233,20 +205,20 @@ export const CliEmulator: React.FC = () => {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-white/10 pb-6">
           <div>
-            <p className="font-mono-hw text-xs tracking-[0.2em] text-cyan-400 uppercase mb-2">
+            <p className="font-mono text-xs tracking-[0.2em] text-cyan-400 uppercase mb-2">
               02 / Interactive CLI Emulator
             </p>
             <h2 className="font-serif-display text-3xl sm:text-4xl md:text-5xl font-light text-white tracking-tight">
               Amoeba Terminal Simulator
             </h2>
           </div>
-          <p className="font-mono-hw text-xs text-zinc-400 max-w-sm leading-relaxed">
+          <p className="font-mono text-xs text-zinc-400 max-w-sm leading-relaxed">
             Test the real interactive CLI prompts right in your browser.
           </p>
         </div>
 
         {/* Terminal Window */}
-        <div className="border border-white/15 bg-[#0a0c13] shadow-[0_12px_40px_rgba(0,0,0,0.7)] overflow-hidden">
+        <div className="border border-white/15 bg-[#0a0c13] shadow-xl overflow-hidden">
           {/* Top Bar */}
           <div className="flex items-center justify-between px-4 py-3 bg-[#0e1018] border-b border-white/10 font-mono text-xs">
             <div className="flex items-center gap-3">
@@ -260,6 +232,7 @@ export const CliEmulator: React.FC = () => {
 
             <div className="flex items-center gap-2">
               <button
+                type="button"
                 onClick={resetTerminal}
                 className="flex items-center gap-1 text-[11px] text-zinc-400 hover:text-white px-2.5 py-1 bg-white/5 hover:bg-white/10 transition-colors cursor-pointer border border-white/5"
               >
@@ -268,6 +241,7 @@ export const CliEmulator: React.FC = () => {
               </button>
 
               <button
+                type="button"
                 onClick={handleCopyCmd}
                 className="flex items-center gap-1 text-[11px] text-[#08090e] bg-[#f5f5f0] hover:bg-[#00f0ff] px-3 py-1 font-bold transition-all cursor-pointer shadow-sm"
               >
@@ -288,6 +262,7 @@ export const CliEmulator: React.FC = () => {
               ].map((p, idx) => (
                 <button
                   key={idx}
+                  type="button"
                   onClick={() => startCli(p.name)}
                   className="px-2 py-0.5 border border-white/10 bg-white/5 hover:bg-white/10 hover:border-cyan-500/30 hover:text-cyan-300 transition-colors cursor-pointer"
                 >
@@ -297,8 +272,11 @@ export const CliEmulator: React.FC = () => {
             </div>
           </div>
 
-          {/* Terminal Screen Body */}
-          <div className="p-6 font-mono text-xs sm:text-sm text-zinc-200 min-h-[420px] max-h-[560px] overflow-y-auto space-y-3 leading-relaxed">
+          {/* Terminal Screen Body (Internal scrolling only) */}
+          <div
+            ref={terminalBodyRef}
+            className="p-6 font-mono text-xs sm:text-sm text-zinc-200 min-h-[380px] max-h-[500px] overflow-y-auto space-y-3 leading-relaxed"
+          >
             {/* Step: Idle */}
             {step === 'idle' && (
               <div className="space-y-5 py-4">
@@ -318,6 +296,7 @@ export const CliEmulator: React.FC = () => {
                 </div>
 
                 <button
+                  type="button"
                   onClick={() => startCli()}
                   className="inline-flex items-center gap-2.5 px-6 py-3.5 bg-[#f5f5f0] text-[#08090e] font-bold text-xs uppercase tracking-wider hover:bg-[#00f0ff] transition-all cursor-pointer shadow-lg"
                 >
@@ -347,8 +326,6 @@ export const CliEmulator: React.FC = () => {
                 <div className="flex items-center gap-2 pl-4">
                   <span className="text-cyan-400 font-bold">›</span>
                   <input
-                    ref={inputRef}
-                    autoFocus
                     type="text"
                     value={inputVal}
                     onChange={(e) => setInputVal(e.target.value)}
@@ -375,6 +352,7 @@ export const CliEmulator: React.FC = () => {
                 ].map((item, idx) => (
                   <button
                     key={idx}
+                    type="button"
                     onClick={() => selectOption('lang', idx)}
                     className="w-full text-left p-2.5 border border-white/10 hover:border-cyan-400 bg-white/5 hover:bg-cyan-950/30 transition-all cursor-pointer flex items-center justify-between group"
                   >
@@ -384,7 +362,7 @@ export const CliEmulator: React.FC = () => {
                       </div>
                       <div className="text-[11px] text-zinc-500 pl-4">{item.desc}</div>
                     </div>
-                    <span className="text-[10px] text-zinc-600 group-hover:text-cyan-400 font-mono-hw">SELECT ↵</span>
+                    <span className="text-[10px] text-zinc-600 group-hover:text-cyan-400 font-mono">SELECT ↵</span>
                   </button>
                 ))}
               </div>
@@ -399,6 +377,7 @@ export const CliEmulator: React.FC = () => {
                 ].map((item, idx) => (
                   <button
                     key={idx}
+                    type="button"
                     onClick={() => selectOption('go_db', idx)}
                     className="w-full text-left p-2.5 border border-white/10 hover:border-cyan-400 bg-white/5 hover:bg-cyan-950/30 transition-all cursor-pointer flex items-center justify-between group"
                   >
@@ -408,7 +387,7 @@ export const CliEmulator: React.FC = () => {
                       </div>
                       <div className="text-[11px] text-zinc-500 pl-4">{item.desc}</div>
                     </div>
-                    <span className="text-[10px] text-zinc-600 group-hover:text-cyan-400 font-mono-hw">SELECT ↵</span>
+                    <span className="text-[10px] text-zinc-600 group-hover:text-cyan-400 font-mono">SELECT ↵</span>
                   </button>
                 ))}
               </div>
@@ -423,6 +402,7 @@ export const CliEmulator: React.FC = () => {
                 ].map((item, idx) => (
                   <button
                     key={idx}
+                    type="button"
                     onClick={() => selectOption('ts_arch', idx)}
                     className="w-full text-left p-2.5 border border-white/10 hover:border-cyan-400 bg-white/5 hover:bg-cyan-950/30 transition-all cursor-pointer flex items-center justify-between group"
                   >
@@ -432,7 +412,7 @@ export const CliEmulator: React.FC = () => {
                       </div>
                       <div className="text-[11px] text-zinc-500 pl-4">{item.desc}</div>
                     </div>
-                    <span className="text-[10px] text-zinc-600 group-hover:text-cyan-400 font-mono-hw">SELECT ↵</span>
+                    <span className="text-[10px] text-zinc-600 group-hover:text-cyan-400 font-mono">SELECT ↵</span>
                   </button>
                 ))}
               </div>
@@ -447,6 +427,7 @@ export const CliEmulator: React.FC = () => {
                 ].map((item, idx) => (
                   <button
                     key={idx}
+                    type="button"
                     onClick={() => selectOption('ts_rest_db', idx)}
                     className="w-full text-left p-2.5 border border-white/10 hover:border-cyan-400 bg-white/5 hover:bg-cyan-950/30 transition-all cursor-pointer flex items-center justify-between group"
                   >
@@ -456,7 +437,7 @@ export const CliEmulator: React.FC = () => {
                       </div>
                       <div className="text-[11px] text-zinc-500 pl-4">{item.desc}</div>
                     </div>
-                    <span className="text-[10px] text-zinc-600 group-hover:text-cyan-400 font-mono-hw">SELECT ↵</span>
+                    <span className="text-[10px] text-zinc-600 group-hover:text-cyan-400 font-mono">SELECT ↵</span>
                   </button>
                 ))}
               </div>
@@ -473,6 +454,7 @@ export const CliEmulator: React.FC = () => {
                 ].map((item, idx) => (
                   <button
                     key={idx}
+                    type="button"
                     onClick={() => selectOption('frontend', idx)}
                     className="w-full text-left p-2.5 border border-white/10 hover:border-cyan-400 bg-white/5 hover:bg-cyan-950/30 transition-all cursor-pointer flex items-center justify-between group"
                   >
@@ -482,7 +464,7 @@ export const CliEmulator: React.FC = () => {
                       </div>
                       <div className="text-[11px] text-zinc-500 pl-4">{item.desc}</div>
                     </div>
-                    <span className="text-[10px] text-zinc-600 group-hover:text-cyan-400 font-mono-hw">SELECT ↵</span>
+                    <span className="text-[10px] text-zinc-600 group-hover:text-cyan-400 font-mono">SELECT ↵</span>
                   </button>
                 ))}
               </div>
@@ -499,13 +481,17 @@ export const CliEmulator: React.FC = () => {
                 ].map((item, idx) => (
                   <button
                     key={idx}
+                    type="button"
                     onClick={() => selectOption('tauri_flavor', idx)}
                     className="w-full text-left p-2.5 border border-white/10 hover:border-cyan-400 bg-white/5 hover:bg-cyan-950/30 transition-all cursor-pointer flex items-center justify-between group"
                   >
-                    <div className="font-bold text-white group-hover:text-cyan-300">
-                      {idx === 0 ? '❯ ' : '  '}{item.label}
+                    <div>
+                      <div className="font-bold text-white group-hover:text-cyan-300">
+                        {idx === 0 ? '❯ ' : '  '}{item.label}
+                      </div>
+                      <div className="text-[11px] text-zinc-500 pl-4">{item.desc}</div>
                     </div>
-                    <span className="text-[10px] text-zinc-600 group-hover:text-cyan-400 font-mono-hw">SELECT ↵</span>
+                    <span className="text-[10px] text-zinc-600 group-hover:text-cyan-400 font-mono">SELECT ↵</span>
                   </button>
                 ))}
               </div>
@@ -521,6 +507,7 @@ export const CliEmulator: React.FC = () => {
                 ].map((item, idx) => (
                   <button
                     key={idx}
+                    type="button"
                     onClick={() => selectOption('monorepo_fe', idx)}
                     className="w-full text-left p-2.5 border border-white/10 hover:border-cyan-400 bg-white/5 hover:bg-cyan-950/30 transition-all cursor-pointer flex items-center justify-between group"
                   >
@@ -530,17 +517,17 @@ export const CliEmulator: React.FC = () => {
                       </div>
                       <div className="text-[11px] text-zinc-500 pl-4">{item.desc}</div>
                     </div>
-                    <span className="text-[10px] text-zinc-600 group-hover:text-cyan-400 font-mono-hw">SELECT ↵</span>
+                    <span className="text-[10px] text-zinc-600 group-hover:text-cyan-400 font-mono">SELECT ↵</span>
                   </button>
                 ))}
               </div>
             )}
 
-            {/* Scaffolding Spinner Animation */}
+            {/* Scaffolding Notice */}
             {step === 'scaffolding' && (
-              <div className="p-4 bg-cyan-950/30 border border-cyan-500/30 text-cyan-300 space-y-1 animate-pulse">
+              <div className="p-4 bg-cyan-950/30 border border-cyan-500/30 text-cyan-300 space-y-1">
                 <div className="font-bold">⚡ Scaffolding project...</div>
-                <div className="text-emerald-400">{spinnerText}</div>
+                <div className="text-emerald-400">Writing sound line-of-sight files...</div>
               </div>
             )}
 
@@ -576,6 +563,7 @@ export const CliEmulator: React.FC = () => {
 
                 <div className="pt-2 flex items-center gap-3">
                   <button
+                    type="button"
                     onClick={() => startCli()}
                     className="px-4 py-2 bg-[#f5f5f0] text-[#08090e] font-bold text-xs uppercase hover:bg-[#00f0ff] transition-colors cursor-pointer"
                   >
@@ -584,8 +572,6 @@ export const CliEmulator: React.FC = () => {
                 </div>
               </div>
             )}
-
-            <div ref={terminalEndRef} />
           </div>
 
           {/* Terminal Bottom Command Output */}
