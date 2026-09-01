@@ -2,7 +2,6 @@ import React from 'react';
 import { Navbar } from './components/Navbar';
 import { Hero } from './components/Hero';
 import { MetricsBar } from './components/MetricsBar';
-import { CliEmulator } from './components/CliEmulator';
 import { InstallSection } from './components/InstallSection';
 import { Footer } from './components/Footer';
 
@@ -12,25 +11,19 @@ export default function App() {
       {/* Navigation */}
       <Navbar />
 
-      {/* Hero Section (Left-aligned Hermes Editorial + Right ASCII Visuals) */}
+      {/* Hero Section (Left Editorial + Right Amoeba ASCII Art & Banner) */}
       <Hero />
 
-      {/* WeMakeDevs 4-Column Impact Metrics Bar */}
+      {/* Impact Metrics Bar */}
       <MetricsBar />
 
-      {/* Pattern Divider */}
+      {/* Diagonal Pattern Divider */}
       <div className="grid-divider-pattern" />
 
-      {/* Section 02: Interactive CLI Emulator (Real Inquire CLI Flow) */}
-      <CliEmulator />
-
-      {/* Pattern Divider */}
-      <div className="grid-divider-pattern" />
-
-      {/* Section 03: Installation & Source (Real Working Methods: curl, git clone, cargo) */}
+      {/* Section 02: Installation & Source (Real Working Methods: curl, git clone, cargo) */}
       <InstallSection />
 
-      {/* Section 04: Minimal Clean Footer */}
+      {/* Footer */}
       <Footer />
     </div>
   );

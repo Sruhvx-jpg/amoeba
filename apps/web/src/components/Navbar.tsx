@@ -29,11 +29,16 @@ export const Navbar: React.FC = () => {
 
         {/* Center Nav Links */}
         <div className="hidden sm:flex items-center gap-8 text-zinc-400">
-          <a href="#emulator" className="hover:text-[#00f0ff] transition-colors">
-            CLI Emulator
-          </a>
           <a href="#install" className="hover:text-[#00f0ff] transition-colors">
-            Install
+            Installation
+          </a>
+          <a
+            href="https://github.com/Sruhvx-jpg/amoeba"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-[#00f0ff] transition-colors"
+          >
+            Source Code
           </a>
         </div>
 
@@ -70,18 +75,20 @@ export const Navbar: React.FC = () => {
       {mobileMenuOpen && (
         <div className="sm:hidden bg-[#0e1017] border-b border-white/15 p-6 flex flex-col gap-4 font-mono text-xs shadow-2xl">
           <a
-            href="#emulator"
-            onClick={() => setMobileMenuOpen(false)}
-            className="py-1 hover:text-[#00f0ff] text-zinc-300"
-          >
-            → CLI Emulator
-          </a>
-          <a
             href="#install"
             onClick={() => setMobileMenuOpen(false)}
             className="py-1 hover:text-[#00f0ff] text-zinc-300"
           >
-            → Install & Source
+            → Installation & Source
+          </a>
+          <a
+            href="https://github.com/Sruhvx-jpg/amoeba"
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => setMobileMenuOpen(false)}
+            className="py-1 hover:text-[#00f0ff] text-zinc-300"
+          >
+            → GitHub Repository
           </a>
         </div>
       )}

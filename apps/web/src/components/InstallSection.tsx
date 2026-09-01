@@ -59,7 +59,7 @@ export const InstallSection: React.FC = () => {
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-white/10 pb-6">
           <div>
             <p className="font-mono text-xs tracking-[0.2em] text-cyan-400 uppercase mb-2">
-              03 / Installation & Source
+              02 / Installation & Source
             </p>
             <h2 className="font-serif-display text-3xl sm:text-4xl md:text-5xl font-light text-white tracking-tight">
               Get Started with Amoeba
