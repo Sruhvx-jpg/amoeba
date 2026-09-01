@@ -1,27 +1,30 @@
-import pc from "picocolors";
+use colored::Colorize;
 
-const BANNER_ART = `
+const BANNER_ART: &str = r#"
   █████╗ ███╗   ███╗ ██████╗ ███████╗██████╗  █████╗ 
  ██╔══██╗████╗ ████║██╔═══██╗██╔════╝██╔══██╗██╔══██╗
  ███████║██╔████╔██║██║   ██║█████╗  ██████╔╝███████║
  ██╔══██║██║╚██╔╝██║██║   ██║██╔══╝  ██╔══██╗██╔══██║
  ██║  ██║██║ ╚═╝ ██║╚██████╔╝███████╗██████╔╝██║  ██║
  ╚═╝  ╚═╝╚═╝     ╚═╝ ╚═════╝ ╚══════╝╚═════╝ ╚═╝  ╚═╝
-`;
+"#;
 
-export function getBannerText(version = "0.1.0"): string {
-  const lines = BANNER_ART.trim().split("\n");
-  const colored = lines
-    .map((line, idx) => {
-      if (idx < 2) return pc.cyan(pc.bold(line));
-      if (idx < 4) return pc.blue(pc.bold(line));
-      return pc.magenta(pc.bold(line));
-    })
-    .join("\n");
-
-  return `${colored}\n  ${pc.bold(pc.white("Amoeba Framework"))} ${pc.dim(`v${version}`)}  ${pc.dim("—")}  ${pc.italic(pc.cyan("Go Fiber v3 + Modern Frontends"))}\n`;
-}
-
-export function printBanner(version = "0.1.0"): void {
-  console.log(getBannerText(version));
+pub fn print_banner(version: &str) {
+    let lines: Vec<&str> = BANNER_ART.trim().split('\n').collect();
+    for (idx, line) in lines.iter().enumerate() {
+        if idx < 2 {
+            println!("{}", line.cyan().bold());
+        } else if idx < 4 {
+            println!("{}", line.blue().bold());
+        } else {
+            println!("{}", line.magenta().bold());
+        }
+    }
+    println!(
+        "  {} {} {} {}\n",
+        "Amoeba Framework".white().bold(),
+        format!("v{}", version).dimmed(),
+        "—".dimmed(),
+        "Blazing Fullstack Scaffolding for Go & TypeScript".cyan().italic()
+    );
 }
