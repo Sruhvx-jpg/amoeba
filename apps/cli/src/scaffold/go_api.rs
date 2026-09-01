@@ -92,10 +92,10 @@ fn write_gorm_files(api_dir: &Path, module_name: &str) -> Result<()> {
 go 1.22
 
 require (
-	github.com/gofiber/fiber/v3 v3.5.0
+	github.com/gofiber/fiber/v3 v3.0.0-beta.4
 	github.com/google/uuid v1.6.0
-	gorm.io/driver/postgres v1.6.2
-	gorm.io/gorm v1.31.2
+	gorm.io/driver/postgres v1.5.11
+	gorm.io/gorm v1.25.12
 )
 "#
     );
@@ -320,8 +320,8 @@ fn write_mongo_files(api_dir: &Path, module_name: &str) -> Result<()> {
 go 1.22
 
 require (
-	github.com/gofiber/fiber/v3 v3.5.0
-	go.mongodb.org/mongo-driver/v2 v2.0.1
+	github.com/gofiber/fiber/v3 v3.0.0-beta.4
+	go.mongodb.org/mongo-driver/v2 v2.0.0
 )
 "#
     );

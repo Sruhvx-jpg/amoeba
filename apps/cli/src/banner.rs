@@ -22,7 +22,7 @@ pub fn print_banner(version: &str) {
     }
     println!(
         "  {} {} {} {}\n",
-        "Amoeba Framework".white().bold(),
+        "Amoeba Proteus".white().bold(),
         format!("v{}", version).dimmed(),
         "—".dimmed(),
         "Blazing Fullstack Scaffolding for Go & TypeScript".cyan().italic()

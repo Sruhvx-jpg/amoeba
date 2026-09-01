@@ -1,9 +1,10 @@
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use colored::Colorize;
 use indicatif::{ProgressBar, ProgressStyle};
 use std::env;
 use std::io::IsTerminal;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+use std::process::Command;
 
 use crate::banner::print_banner;
 use crate::cli::NewArgs;
@@ -14,9 +15,12 @@ use crate::scaffold::root_files::write_root_files;
 use crate::scaffold::trpc_monorepo::scaffold_trpc_monorepo;
 use crate::scaffold::ts_rest_api::write_ts_rest_api_files;
 use crate::types::*;
+use crate::utils::project::detect_package_manager;
+
+const CLI_VERSION: &str = "0.2.1";
 
 pub fn handle_new_command(args: NewArgs) -> Result<()> {
-    print_banner("0.2.0");
+    print_banner(CLI_VERSION);
 
     let is_interactive = std::io::stdin().is_terminal() && std::io::stdout().is_terminal();
 
@@ -246,10 +250,192 @@ pub fn handle_new_command(args: NewArgs) -> Result<()> {
         }
     }
 
-    pb.finish_with_message(format!("{}", "✔ Project scaffolded successfully!".green().bold()));
+    pb.finish_with_message(format!("{}", "✔ Scaffolding layout complete!".green().bold()));
+
+    // Automatic Dependency Installation
+    install_scaffold_dependencies(&target_dir, &config)?;
 
     // Print Completion Summary
     print_completion_summary(&config, &target_dir);
+
+    Ok(())
+}
+
+fn install_scaffold_dependencies(target_dir: &Path, config: &ScaffoldConfig) -> Result<()> {
+    println!("\n{}", "⚡ Installing project dependencies...".cyan().bold());
+
+    match config.backend_lang {
+        BackendLang::Go => {
+            let api_dir = target_dir.join("apps").join("api");
+            if api_dir.exists() {
+                let pb = ProgressBar::new_spinner();
+                pb.set_style(
+                    ProgressStyle::default_spinner()
+                        .tick_chars("⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏ ")
+                        .template("{spinner:.cyan} {msg}")?,
+                );
+                pb.set_message("Downloading Go modules (go mod tidy)...");
+
+                let status = Command::new("go")
+                    .args(["mod", "tidy"])
+                    .current_dir(&api_dir)
+                    .status()
+                    .with_context(|| "Failed to run 'go mod tidy'")?;
+
+                if !status.success() {
+                    pb.finish_with_message(format!("{}", "⚠ Warning: 'go mod tidy' failed to resolve some modules".yellow()));
+                } else {
+                    pb.finish_with_message(format!("{}", "✔ Go Fiber dependencies installed".green().bold()));
+                }
+            }
+
+            if let Some(fe) = config.frontend {
+                if fe != FrontendFramework::ApiOnly {
+                    let fe_dir = if fe == FrontendFramework::Tauri {
+                        target_dir.join("apps").join("desktop")
+                    } else {
+                        target_dir.join("apps").join("web")
+                    };
+
+                    if fe_dir.exists() {
+                        let pm = detect_package_manager(&fe_dir);
+                        let pb = ProgressBar::new_spinner();
+                        pb.set_style(
+                            ProgressStyle::default_spinner()
+                                .tick_chars("⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏ ")
+                                .template("{spinner:.magenta} {msg}")?,
+                        );
+                        pb.set_message(format!("Installing frontend dependencies with {}...", pm.name()));
+
+                        let status = Command::new(pm.name())
+                            .arg("install")
+                            .current_dir(&fe_dir)
+                            .status()
+                            .with_context(|| format!("Failed to run '{} install'", pm.name()))?;
+
+                        if pm == crate::utils::project::PackageManager::Pnpm {
+                            let _ = Command::new("pnpm")
+                                .args(["approve-builds", "--all"])
+                                .current_dir(&fe_dir)
+                                .stdout(std::process::Stdio::null())
+                                .stderr(std::process::Stdio::null())
+                                .status();
+                        }
+
+                        if !status.success() {
+                            pb.finish_with_message(format!("{}", "⚠ Warning: frontend dependency installation failed".yellow()));
+                        } else {
+                            pb.finish_with_message(format!("{}", "✔ Frontend dependencies installed".green().bold()));
+                        }
+                    }
+                }
+            }
+        }
+
+        BackendLang::TypeScript => {
+            match config.arch_style.unwrap_or(ArchStyle::RestApi) {
+                ArchStyle::RestApi => {
+                    let api_dir = target_dir.join("apps").join("api");
+                    if api_dir.exists() {
+                        let pm = detect_package_manager(&api_dir);
+                        let pb = ProgressBar::new_spinner();
+                        pb.set_style(
+                            ProgressStyle::default_spinner()
+                                .tick_chars("⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏ ")
+                                .template("{spinner:.cyan} {msg}")?,
+                        );
+                        pb.set_message(format!("Installing Express REST API dependencies with {}...", pm.name()));
+
+                        let status = Command::new(pm.name())
+                            .arg("install")
+                            .current_dir(&api_dir)
+                            .status()
+                            .with_context(|| format!("Failed to run '{} install'", pm.name()))?;
+
+                        if pm == crate::utils::project::PackageManager::Pnpm {
+                            let _ = Command::new("pnpm")
+                                .args(["approve-builds", "--all"])
+                                .current_dir(&api_dir)
+                                .stdout(std::process::Stdio::null())
+                                .stderr(std::process::Stdio::null())
+                                .status();
+                        }
+
+                        if !status.success() {
+                            pb.finish_with_message(format!("{}", "⚠ Warning: API dependency installation failed".yellow()));
+                        } else {
+                            pb.finish_with_message(format!("{}", "✔ Express API dependencies installed".green().bold()));
+                        }
+                    }
+
+                    if let Some(fe) = config.frontend {
+                        if fe != FrontendFramework::ApiOnly {
+                            let fe_dir = if fe == FrontendFramework::Tauri {
+                                target_dir.join("apps").join("desktop")
+                            } else {
+                                target_dir.join("apps").join("web")
+                            };
+
+                            if fe_dir.exists() {
+                                let pm = detect_package_manager(&fe_dir);
+                                let pb = ProgressBar::new_spinner();
+                                pb.set_style(
+                                    ProgressStyle::default_spinner()
+                                        .tick_chars("⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏ ")
+                                        .template("{spinner:.magenta} {msg}")?,
+                                );
+                                pb.set_message(format!("Installing frontend dependencies with {}...", pm.name()));
+
+                                let status = Command::new(pm.name())
+                                    .arg("install")
+                                    .current_dir(&fe_dir)
+                                    .status()
+                                    .with_context(|| format!("Failed to run '{} install'", pm.name()))?;
+
+                                if !status.success() {
+                                    pb.finish_with_message(format!("{}", "⚠ Warning: frontend dependency installation failed".yellow()));
+                                } else {
+                                    pb.finish_with_message(format!("{}", "✔ Frontend dependencies installed".green().bold()));
+                                }
+                            }
+                        }
+                    }
+                }
+
+                ArchStyle::TrpcMonorepo => {
+                    let pm = detect_package_manager(target_dir);
+                    let pb = ProgressBar::new_spinner();
+                    pb.set_style(
+                        ProgressStyle::default_spinner()
+                            .tick_chars("⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏ ")
+                            .template("{spinner:.cyan} {msg}")?,
+                    );
+                    pb.set_message(format!("Installing monorepo workspace dependencies with {}...", pm.name()));
+
+                    let status = Command::new(pm.name())
+                        .arg("install")
+                        .current_dir(target_dir)
+                        .status()
+                        .with_context(|| format!("Failed to run '{} install'", pm.name()))?;
+
+                    if pm == crate::utils::project::PackageManager::Pnpm {
+                        let _ = Command::new("pnpm")
+                            .args(["approve-builds", "--all"])
+                            .current_dir(target_dir)
+                            .stdout(std::process::Stdio::null())
+                            .stderr(std::process::Stdio::null())
+                            .status();
+                    }
+
+                    if !status.success() {
+                        pb.finish_with_message(format!("{}", "⚠ Warning: monorepo dependency installation failed".yellow()));
+                    } else {
+                        pb.finish_with_message(format!("{}", "✔ Monorepo dependencies installed".green().bold()));
+                    }
+                }
+            }
+        }
+    }
 
     Ok(())
 }
@@ -302,32 +488,33 @@ fn print_completion_summary(config: &ScaffoldConfig, target_dir: &PathBuf) {
 
     println!("{}", "⚡ Next Steps:".white().bold());
     println!("  cd {}", config.project_name.cyan().bold());
+    println!("  amoeba start         {}", "# Start API and frontend together".dimmed());
+    println!("  amoeba start --only-api");
+    println!("  amoeba build\n");
 
     match config.backend_lang {
         BackendLang::Go => {
-            println!("  cd apps/api && go run ./cmd/server/main.go");
             if let Some(fe) = config.frontend {
                 if fe != FrontendFramework::ApiOnly {
                     let fe_path = if fe == FrontendFramework::Tauri { "apps/desktop" } else { "apps/web" };
-                    println!("  cd {} && pnpm install && pnpm dev", fe_path);
+                    println!("  {} {} (cd {})", "• Frontend:".white().bold(), fe, fe_path.cyan());
                 }
             }
+            println!("  {} Go Fiber v3 (cd apps/api)", "• Backend:".white().bold());
         }
         BackendLang::TypeScript => {
             match config.arch_style.unwrap_or(ArchStyle::RestApi) {
                 ArchStyle::RestApi => {
-                    println!("  cd apps/api && pnpm install && pnpm dev");
                     if let Some(fe) = config.frontend {
                         if fe != FrontendFramework::ApiOnly {
                             let fe_path = if fe == FrontendFramework::Tauri { "apps/desktop" } else { "apps/web" };
-                            println!("  cd {} && pnpm install && pnpm dev", fe_path);
+                            println!("  {} {} (cd {})", "• Frontend:".white().bold(), fe, fe_path.cyan());
                         }
                     }
+                    println!("  {} Express REST (cd apps/api)", "• Backend:".white().bold());
                 }
                 ArchStyle::TrpcMonorepo => {
-                    println!("  pnpm install");
-                    println!("  pnpm dev");
-                    println!("\n{}", "💡 Monorepo Tip:".magenta().bold());
+                    println!("\n{}", "📦 Monorepo Tip:".magenta().bold());
                     println!(
                         "  Run {} to create new shared packages in packages/",
                         "amoeba new pkg <name>".yellow().bold()

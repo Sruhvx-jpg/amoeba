@@ -4,9 +4,9 @@ use clap::{Parser, Subcommand};
 #[command(
     name = "amoeba",
     author = "dron",
-    version = "0.2.0",
-    about = "⚡ Amoeba Framework CLI - Rapid scaffolding for Go & TypeScript fullstack systems",
-    long_about = "A high-performance CLI tool for scaffolding production-ready fullstack architectures.\nSupports Go Fiber v3, TypeScript Express Modular REST, and tRPC Turborepo Monorepos."
+    version = "0.2.1",
+    about = "⚡ Amoeba Proteus CLI - Rapid scaffolding, building & server engine for Go & TypeScript fullstack systems",
+    long_about = "A high-performance CLI tool for scaffolding, building, and running production-ready fullstack architectures.\nSupports Go Fiber v3, TypeScript Express Modular REST, and tRPC Turborepo Monorepos."
 )]
 pub struct Cli {
     #[command(subcommand)]
@@ -17,10 +17,41 @@ pub struct Cli {
 pub enum Commands {
     /// Scaffold a new Amoeba project or monorepo package
     New(NewArgs),
+    /// Build project services (API backend, frontend, or both)
+    Build(BuildArgs),
+    /// Start development or server processes (API backend, frontend, or both)
+    #[command(alias = "dev")]
+    Start(StartArgs),
     /// Check for Amoeba framework releases and upgrade project dependencies
     Update,
     /// Print version information
     Version,
+}
+
+#[derive(Parser, Debug, Default, Clone)]
+pub struct BuildArgs {
+    /// Build only the backend API service
+    #[arg(long = "only-api", alias = "api", conflicts_with = "only_frontend")]
+    pub only_api: bool,
+
+    /// Build only the frontend application (web / desktop)
+    #[arg(long = "only-frontend", alias = "only-fe", alias = "frontend", alias = "web", conflicts_with = "only_api")]
+    pub only_frontend: bool,
+}
+
+#[derive(Parser, Debug, Default, Clone)]
+pub struct StartArgs {
+    /// Start only the backend API server
+    #[arg(long = "only-api", alias = "api", conflicts_with = "only_frontend")]
+    pub only_api: bool,
+
+    /// Start only the frontend application (web / desktop)
+    #[arg(long = "only-frontend", alias = "only-fe", alias = "frontend", alias = "web", conflicts_with = "only_api")]
+    pub only_frontend: bool,
+
+    /// Run in production mode
+    #[arg(short, long)]
+    pub prod: bool,
 }
 
 #[derive(Parser, Debug, Default)]
