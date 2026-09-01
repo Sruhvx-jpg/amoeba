@@ -112,10 +112,12 @@ DATABASE_URL=postgres://postgres:postgres@localhost:5432/{module_name}?sslmode=d
     write_file(api_dir.join(".env.example"), &env_content)?;
 
     // config/config.go
-    let config_go = r#"package config
+    let config_go = r##"package config
 
 import (
+	"bufio"
 	"os"
+	"strings"
 )
 
 type Config struct {
@@ -124,7 +126,37 @@ type Config struct {
 	DatabaseURL string
 }
 
+func loadDotEnv(filenames ...string) {
+	for _, filename := range filenames {
+		file, err := os.Open(filename)
+		if err != nil {
+			continue
+		}
+		defer file.Close()
+
+		scanner := bufio.NewScanner(file)
+		for scanner.Scan() {
+			line := strings.TrimSpace(scanner.Text())
+			if line == "" || strings.HasPrefix(line, "#") {
+				continue
+			}
+			parts := strings.SplitN(line, "=", 2)
+			if len(parts) == 2 {
+				key := strings.TrimSpace(parts[0])
+				val := strings.TrimSpace(parts[1])
+				val = strings.Trim(val, "'\"")
+				if os.Getenv(key) == "" {
+					os.Setenv(key, val)
+				}
+			}
+		}
+		break
+	}
+}
+
 func Load() (*Config, error) {
+	loadDotEnv(".env", "../.env", "../../.env")
+
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "3000"
@@ -134,16 +166,13 @@ func Load() (*Config, error) {
 		env = "development"
 	}
 	dbURL := os.Getenv("DATABASE_URL")
-	if dbURL == "" {
-		dbURL = "postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable"
-	}
 	return &Config{
 		Port:        port,
 		Environment: env,
 		DatabaseURL: dbURL,
 	}, nil
 }
-"#;
+"##;
     write_file(api_dir.join("internal/config/config.go"), config_go)?;
 
     // database/database.go
@@ -162,25 +191,35 @@ import (
 )
 
 func Connect(cfg *config.Config) (*gorm.DB, error) {{
+	if cfg.DatabaseURL == "" {{
+		return nil, fmt.Errorf("DATABASE_URL environment variable is empty")
+	}}
+
 	logLevel := logger.Warn
 	if cfg.Environment == "development" {{
 		logLevel = logger.Info
 	}}
 
 	db, err := gorm.Open(postgres.Open(cfg.DatabaseURL), &gorm.Config{{
-		Logger: logger.Default.LogMode(logLevel),
+		Logger: logger.Default.LogMode(logger.Silent),
 		NowFunc: func() time.Time {{
 			return time.Now().UTC()
 		}},
 	}})
 	if err != nil {{
-		return nil, fmt.Errorf("failed to connect to database: %w", err)
+		return nil, fmt.Errorf("connection failed: %w", err)
 	}}
 
 	sqlDB, err := db.DB()
 	if err != nil {{
 		return nil, fmt.Errorf("failed to retrieve sql.DB: %w", err)
 	}}
+
+	if err := sqlDB.Ping(); err != nil {{
+		return nil, fmt.Errorf("ping failed: %w", err)
+	}}
+
+	db.Logger = logger.Default.LogMode(logLevel)
 
 	sqlDB.SetMaxIdleConns(10)
 	sqlDB.SetMaxOpenConns(100)
@@ -271,7 +310,9 @@ func Setup(app *fiber.App, db *gorm.DB) {{
         r#"package main
 
 import (
+	"fmt"
 	"log"
+	"os"
 
 	"{module_name}/api/internal/config"
 	"{module_name}/api/internal/database"
@@ -289,7 +330,17 @@ func main() {{
 
 	db, err := database.Connect(cfg)
 	if err != nil {{
-		log.Fatalf("failed to connect to database: %v", err)
+		fmt.Fprintf(os.Stderr, "\n%s\n", "❌ Amoeba Database Connection Error:")
+		fmt.Fprintf(os.Stderr, "   Could not establish a connection to PostgreSQL.\n\n")
+		fmt.Fprintf(os.Stderr, "   • Required Variable: %s\n", "DATABASE_URL")
+		if cfg.DatabaseURL == "" {{
+			fmt.Fprintf(os.Stderr, "   • Current Value:     %s\n", "<empty>")
+		}} else {{
+			fmt.Fprintf(os.Stderr, "   • Current Value:     %s\n", cfg.DatabaseURL)
+		}}
+		fmt.Fprintf(os.Stderr, "   • Expected Format:   %s\n", "postgres://username:password@localhost:5432/dbname?sslmode=disable")
+		fmt.Fprintf(os.Stderr, "   • How to fix:        Set DATABASE_URL in 'apps/api/.env' and ensure PostgreSQL is running.\n\n")
+		os.Exit(1)
 	}}
 
 	if err := schema.Migrate(db); err != nil {{
@@ -340,10 +391,12 @@ DATABASE_NAME={module_name}
 
     // config/config.go
     let config_go = format!(
-        r#"package config
+        r##"package config
 
 import (
+	"bufio"
 	"os"
+	"strings"
 )
 
 type Config struct {{
@@ -353,7 +406,37 @@ type Config struct {{
 	DatabaseName string
 }}
 
+func loadDotEnv(filenames ...string) {{
+	for _, filename := range filenames {{
+		file, err := os.Open(filename)
+		if err != nil {{
+			continue
+		}}
+		defer file.Close()
+
+		scanner := bufio.NewScanner(file)
+		for scanner.Scan() {{
+			line := strings.TrimSpace(scanner.Text())
+			if line == "" || strings.HasPrefix(line, "#") {{
+				continue
+			}}
+			parts := strings.SplitN(line, "=", 2)
+			if len(parts) == 2 {{
+				key := strings.TrimSpace(parts[0])
+				val := strings.TrimSpace(parts[1])
+				val = strings.Trim(val, "'\"")
+				if os.Getenv(key) == "" {{
+					os.Setenv(key, val)
+				}}
+			}}
+		}}
+		break
+	}}
+}}
+
 func Load() (*Config, error) {{
+	loadDotEnv(".env", "../.env", "../../.env")
+
 	port := os.Getenv("PORT")
 	if port == "" {{
 		port = "3000"
@@ -363,9 +446,6 @@ func Load() (*Config, error) {{
 		env = "development"
 	}}
 	dbURL := os.Getenv("DATABASE_URL")
-	if dbURL == "" {{
-		dbURL = "mongodb://localhost:27017"
-	}}
 	dbName := os.Getenv("DATABASE_NAME")
 	if dbName == "" {{
 		dbName = "{module_name}"
@@ -377,7 +457,7 @@ func Load() (*Config, error) {{
 		DatabaseName: dbName,
 	}}, nil
 }}
-"#
+"##
     );
     write_file(api_dir.join("internal/config/config.go"), &config_go)?;
 
@@ -506,7 +586,9 @@ func Setup(app *fiber.App, db *database.Database) {{
 
 import (
 	"context"
+	"fmt"
 	"log"
+	"os"
 	"time"
 
 	"{module_name}/api/internal/config"
@@ -525,7 +607,17 @@ func main() {{
 
 	db, err := database.Connect(cfg)
 	if err != nil {{
-		log.Fatalf("failed to connect to mongodb: %v", err)
+		fmt.Fprintf(os.Stderr, "\n%s\n", "❌ Amoeba Database Connection Error:")
+		fmt.Fprintf(os.Stderr, "   Could not establish a connection to MongoDB.\n\n")
+		fmt.Fprintf(os.Stderr, "   • Required Variables: %s, %s\n", "DATABASE_URL", "DATABASE_NAME")
+		if cfg.DatabaseURL == "" {{
+			fmt.Fprintf(os.Stderr, "   • Current URL:        %s\n", "<empty>")
+		}} else {{
+			fmt.Fprintf(os.Stderr, "   • Current URL:        %s\n", cfg.DatabaseURL)
+		}}
+		fmt.Fprintf(os.Stderr, "   • Expected Format:    %s\n", "mongodb://localhost:27017")
+		fmt.Fprintf(os.Stderr, "   • How to fix:         Set DATABASE_URL in 'apps/api/.env' and ensure MongoDB is running.\n\n")
+		os.Exit(1)
 	}}
 	defer func() {{
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

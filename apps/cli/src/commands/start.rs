@@ -15,7 +15,7 @@ use crate::utils::project::{
     detect_project, ApiComponent, DetectedProject, FrontendComponent, ProjectKind,
 };
 
-const CLI_VERSION: &str = "0.2.1";
+const CLI_VERSION: &str = "0.2.2";
 
 #[derive(Debug, Clone)]
 struct ServiceSpec {
@@ -24,6 +24,44 @@ struct ServiceSpec {
     pub dir: PathBuf,
     pub program: String,
     pub args: Vec<String>,
+}
+
+fn check_api_environment(api_dir: &std::path::Path) {
+    let env_file = api_dir.join(".env");
+    let env_example = api_dir.join(".env.example");
+
+    if !env_file.exists() && env_example.exists() {
+        if let Ok(_) = std::fs::copy(&env_example, &env_file) {
+            println!(
+                "{} Created '{}' from '.env.example'",
+                "⚡".cyan().bold(),
+                env_file.display().to_string().cyan()
+            );
+        }
+    }
+
+    if env_file.exists() {
+        if let Ok(content) = std::fs::read_to_string(&env_file) {
+            let has_db_url = content.lines().any(|line| {
+                let trimmed = line.trim();
+                trimmed.starts_with("DATABASE_URL=")
+                    && trimmed["DATABASE_URL=".len()..].trim() != ""
+            });
+
+            if !has_db_url && std::env::var("DATABASE_URL").is_err() {
+                println!(
+                    "{} {}",
+                    "ℹ Amoeba DB Notice:".yellow().bold(),
+                    "'DATABASE_URL' is empty in apps/api/.env".white()
+                );
+                println!(
+                    "  Expected Variable: {}\n  Example:           {}\n",
+                    "DATABASE_URL".cyan().bold(),
+                    "postgres://postgres:postgres@localhost:5432/myapp?sslmode=disable".dimmed()
+                );
+            }
+        }
+    }
 }
 
 pub fn handle_start_command(args: StartArgs) -> Result<()> {
@@ -55,6 +93,7 @@ pub fn handle_start_command(args: StartArgs) -> Result<()> {
 
             if should_start_api {
                 if let Some(api_comp) = api {
+                    check_api_environment(api_comp.dir());
                     services.push(build_api_spec(api_comp, args.prod));
                 }
             }
@@ -94,6 +133,7 @@ pub fn handle_start_command(args: StartArgs) -> Result<()> {
             if args.only_frontend {
                 bail!("--only-frontend was specified, but the current directory is an API-only service.");
             }
+            check_api_environment(api_comp.dir());
             let spec = build_api_spec(api_comp, args.prod);
             run_single_service(&spec)?;
         }

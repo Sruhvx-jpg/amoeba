@@ -4,7 +4,7 @@ use clap::{Parser, Subcommand};
 #[command(
     name = "amoeba",
     author = "dron",
-    version = "0.2.1",
+    version = "0.2.2",
     about = "⚡ Amoeba Proteus CLI - Rapid scaffolding, building & server engine for Go & TypeScript fullstack systems",
     long_about = "A high-performance CLI tool for scaffolding, building, and running production-ready fullstack architectures.\nSupports Go Fiber v3, TypeScript Express Modular REST, and tRPC Turborepo Monorepos."
 )]
@@ -22,10 +22,28 @@ pub enum Commands {
     /// Start development or server processes (API backend, frontend, or both)
     #[command(alias = "dev")]
     Start(StartArgs),
+    /// Database management utilities (generate, migrate, studio)
+    Db(DbArgs),
     /// Check for Amoeba framework releases and upgrade project dependencies
     Update,
     /// Print version information
     Version,
+}
+
+#[derive(Parser, Debug)]
+pub struct DbArgs {
+    #[command(subcommand)]
+    pub command: DbSubcommand,
+}
+
+#[derive(Subcommand, Debug, Clone)]
+pub enum DbSubcommand {
+    /// Generate database migrations or schema artifacts
+    Generate,
+    /// Apply pending database schema migrations
+    Migrate,
+    /// Open interactive database studio / GUI (Drizzle Studio)
+    Studio,
 }
 
 #[derive(Parser, Debug, Default, Clone)]

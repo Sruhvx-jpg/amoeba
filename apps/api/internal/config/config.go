@@ -1,8 +1,9 @@
 package config
 
 import (
-	"fmt"
+	"bufio"
 	"os"
+	"strings"
 )
 
 type Config struct {
@@ -12,25 +13,51 @@ type Config struct {
 	Environment string
 }
 
+func loadDotEnv(filenames ...string) {
+	for _, filename := range filenames {
+		file, err := os.Open(filename)
+		if err != nil {
+			continue
+		}
+		defer file.Close()
+
+		scanner := bufio.NewScanner(file)
+		for scanner.Scan() {
+			line := strings.TrimSpace(scanner.Text())
+			if line == "" || strings.HasPrefix(line, "#") {
+				continue
+			}
+			parts := strings.SplitN(line, "=", 2)
+			if len(parts) == 2 {
+				key := strings.TrimSpace(parts[0])
+				val := strings.TrimSpace(parts[1])
+				val = strings.Trim(val, `"'`)
+				if os.Getenv(key) == "" {
+					os.Setenv(key, val)
+				}
+			}
+		}
+		break
+	}
+}
+
 func Load() (*Config, error) {
-	port, err := getEnv("PORT")
-	if err != nil {
-		return nil, err
+	loadDotEnv(".env", "../.env", "../../.env")
+
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "3000"
 	}
 
-	dbUrl, err := getEnv("DATABASE_URL")
-	if err != nil {
-		return nil, err
+	dbUrl := os.Getenv("DATABASE_URL")
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		jwtSecret = "development_secret_change_in_production"
 	}
 
-	jwtSecret, err := getEnv("JWT_SECRET")
-	if err != nil {
-		return nil, err
-	}
-
-	env, err := getEnv("ENVIRONMENT")
-	if err != nil {
-		return nil, err
+	env := os.Getenv("ENVIRONMENT")
+	if env == "" {
+		env = "development"
 	}
 
 	return &Config{
@@ -39,13 +66,4 @@ func Load() (*Config, error) {
 		JWTSecret:   jwtSecret,
 		Environment: env,
 	}, nil
-}
-
-func getEnv(key string) (string, error) {
-	val := os.Getenv(key)
-	if val == "" {
-		return "", fmt.Errorf("missing environment variable: %s", key)
-	}
-
-	return val, nil
 }

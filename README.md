@@ -1,4 +1,4 @@
-# ⚡ Amoeba Proteus (v0.2.1)
+# ⚡ Amoeba Proteus (v0.2.2)
 
 A high-performance, opinionated full-stack framework and CLI pairing systems speed with modern frontend and backend architectures.
 
@@ -67,14 +67,27 @@ amoeba build --only-api
 amoeba build --only-frontend
 ```
 
-### 4. Scaffold a Workspace Package (tRPC Monorepo Exclusive)
+### 4. Database Management (`amoeba db`)
+Manage database schemas, generate migrations, and open studio interfaces:
+```bash
+# Generate database schema migrations / type artifacts
+amoeba db generate
+
+# Execute and apply pending database migrations
+amoeba db migrate
+
+# Open database studio GUI (e.g. Drizzle Studio)
+amoeba db studio
+```
+
+### 5. Scaffold a Workspace Package (tRPC Monorepo Exclusive)
 Inside any Amoeba tRPC monorepo:
 ```bash
 amoeba new pkg <pkg_name>
 ```
 *Creates `@repo/<pkg_name>` in `packages/<pkg_name>` with workspace configs and TypeScript definitions.*
 
-### 5. Check for Updates
+### 6. Check for Updates
 ```bash
 amoeba update
 ```

@@ -11,7 +11,7 @@ use crate::utils::project::{
     detect_project, ApiComponent, DetectedProject, FrontendComponent, ProjectKind,
 };
 
-const CLI_VERSION: &str = "0.2.1";
+const CLI_VERSION: &str = "0.2.2";
 
 pub fn handle_build_command(args: BuildArgs) -> Result<()> {
     print_banner(CLI_VERSION);

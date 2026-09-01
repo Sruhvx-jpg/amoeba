@@ -39,7 +39,7 @@ export const Footer: React.FC = () => {
                 CLI
               </span>
               <span className="text-[10px] px-2 py-0.5 border border-white/10 bg-white/5 text-zinc-400">
-                v0.2.1 · Proteus
+                v0.2.2 · Proteus
               </span>
             </div>
 
@@ -130,6 +130,13 @@ export const Footer: React.FC = () => {
                   <code>amoeba build [--only-api|--only-frontend]</code>
                 </div>
                 <p className="text-[11px] text-zinc-500 pl-4 normal-case">Compile services & production bundles</p>
+              </li>
+              <li className="space-y-0.5">
+                <div className="flex items-center gap-2 text-zinc-200 font-semibold">
+                  <span className="text-cyan-400 select-none">$</span>
+                  <code>amoeba db [generate|migrate]</code>
+                </div>
+                <p className="text-[11px] text-zinc-500 pl-4 normal-case">Generate & apply database migrations</p>
               </li>
               <li className="space-y-0.5">
                 <div className="flex items-center gap-2 text-zinc-200 font-semibold">

@@ -23,9 +23,10 @@ fn main() {
         }
         Some(Commands::Build(args)) => commands::build::handle_build_command(args),
         Some(Commands::Start(args)) => commands::start::handle_start_command(args),
+        Some(Commands::Db(args)) => commands::db::handle_db_command(args.command),
         Some(Commands::Update) => commands::update::handle_update_command(),
         Some(Commands::Version) => {
-            println!("amoeba proteus v0.2.1");
+            println!("amoeba proteus v0.2.2");
             Ok(())
         }
         None => {

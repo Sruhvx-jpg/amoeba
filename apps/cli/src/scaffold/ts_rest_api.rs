@@ -436,12 +436,39 @@ export function createApp() {
     let index_ts = match database {
         DatabaseEngine::Drizzle => r#"import { createApp } from "./app.js";
 import { config } from "./config/index.js";
+import { pool } from "./database/index.js";
 
-const app = createApp();
+async function bootstrap() {
+  if (!config.databaseUrl || config.databaseUrl.trim() === "") {
+    console.error("\n❌ Amoeba Database Configuration Error:");
+    console.error("   Missing required environment variable 'DATABASE_URL'.\n");
+    console.error("   • Required Variable: DATABASE_URL");
+    console.error("   • Expected Format:   postgres://username:password@localhost:5432/dbname");
+    console.error("   • How to fix:        Configure DATABASE_URL in 'apps/api/.env' and ensure PostgreSQL is running.\n");
+    process.exit(1);
+  }
 
-app.listen(config.port, () => {
-  console.log(`⚡ Amoeba Express API running on http://localhost:${config.port}`);
-});
+  try {
+    const client = await pool.connect();
+    client.release();
+  } catch (err: any) {
+    console.error("\n❌ Amoeba Database Connection Error:");
+    console.error("   Could not establish a connection to PostgreSQL.\n");
+    console.error("   • Required Variable: DATABASE_URL");
+    console.error(`   • Current Value:     ${config.databaseUrl}`);
+    console.error("   • Expected Format:   postgres://username:password@localhost:5432/dbname");
+    console.error("   • How to fix:        Configure DATABASE_URL in 'apps/api/.env' and ensure PostgreSQL is running.\n");
+    process.exit(1);
+  }
+
+  const app = createApp();
+
+  app.listen(config.port, () => {
+    console.log(`⚡ Amoeba Express API running on http://localhost:${config.port}`);
+  });
+}
+
+bootstrap();
 "#,
         _ => r#"import { createApp } from "./app.js";
 import { config } from "./config/index.js";
@@ -532,13 +559,27 @@ export const HealthCheck = mongoose.model("HealthCheck", HealthCheckSchema);
 import { config } from "../config/index.js";
 
 export async function connectDatabase(): Promise<typeof mongoose> {
+  if (!config.databaseUrl || config.databaseUrl.trim() === "") {
+    console.error("\n❌ Amoeba Database Configuration Error:");
+    console.error("   Missing required environment variable 'DATABASE_URL'.\n");
+    console.error("   • Required Variable: DATABASE_URL");
+    console.error("   • Expected Format:   mongodb://localhost:27017/dbname");
+    console.error("   • How to fix:        Configure DATABASE_URL in 'apps/api/.env' and ensure MongoDB is running.\n");
+    process.exit(1);
+  }
+
   try {
     const conn = await mongoose.connect(config.databaseUrl);
     console.log("✔ Connected to MongoDB successfully");
     return conn;
   } catch (error) {
-    console.error("❌ MongoDB connection error:", error);
-    throw error;
+    console.error("\n❌ Amoeba Database Connection Error:");
+    console.error("   Could not establish a connection to MongoDB.\n");
+    console.error("   • Required Variable: DATABASE_URL");
+    console.error(`   • Current Value:     ${config.databaseUrl}`);
+    console.error("   • Expected Format:   mongodb://localhost:27017/dbname");
+    console.error("   • How to fix:        Configure DATABASE_URL in 'apps/api/.env' and ensure MongoDB is running.\n");
+    process.exit(1);
   }
 }
 "#;
