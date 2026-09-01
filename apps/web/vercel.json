@@ -1,0 +1,11 @@
+{
+  "framework": "vite",
+  "buildCommand": "vite build",
+  "outputDirectory": "dist",
+  "rewrites": [
+    {
+      "source": "/((?!assets/|install\\.sh|favicon\\.svg).*)",
+      "destination": "/index.html"
+    }
+  ]
+}
