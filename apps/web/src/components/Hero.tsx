@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { HeroHologram } from './HeroHologram';
 import { AsciiBanner } from './AsciiBanner';
 import { Terminal, Copy, Check } from 'lucide-react';
 import confetti from 'canvas-confetti';
@@ -26,10 +27,10 @@ export const Hero: React.FC = () => {
   };
 
   return (
-    <header className="relative w-full pt-16 md:pt-24 pb-20 px-6 sm:px-12 lg:px-16 overflow-hidden">
-      <div className="max-w-[1400px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-center">
+    <header className="relative w-full pt-12 md:pt-16 pb-16 px-6 sm:px-12 lg:px-16 overflow-hidden">
+      <div className="max-w-[1500px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-start">
         {/* Left Column: Editorial Content */}
-        <div className="lg:col-span-6 space-y-8 z-10">
+        <div className="lg:col-span-7 space-y-8 z-10">
           <div className="space-y-6">
             {/* Headline */}
             <h1 className="font-serif-display text-5xl sm:text-7xl lg:text-7xl xl:text-8xl font-light leading-[0.9] tracking-[0.01em] text-white">
@@ -72,8 +73,9 @@ export const Hero: React.FC = () => {
           </div>
         </div>
 
-        {/* Right Column: Single Crisp ASCII Banner Box (Clean, Uncluttered) */}
-        <div className="lg:col-span-6 flex flex-col justify-center z-10">
+        {/* Right Column: Amoeba ASCII Art & Banner */}
+        <div className="lg:col-span-5 flex flex-col gap-6 z-10">
+          <HeroHologram />
           <AsciiBanner />
         </div>
       </div>
