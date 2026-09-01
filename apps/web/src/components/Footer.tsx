@@ -7,10 +7,6 @@ export const Footer: React.FC = () => {
       <div className="container-grid px-6 sm:px-12 lg:px-16 space-y-12">
         {/* Centered CTA */}
         <div className="max-w-2xl mx-auto text-center space-y-5">
-          <p className="font-mono text-xs tracking-[0.2em] text-cyan-400 uppercase">
-            04 / Outlaw Systems Standard
-          </p>
-
           <h2 className="font-serif-display text-4xl sm:text-6xl font-light tracking-[0.02em] leading-none text-white">
             Amoeba CLI
           </h2>
@@ -45,10 +41,8 @@ export const Footer: React.FC = () => {
           <div>
             <p>Amoeba CLI</p>
           </div>
-          <div className="flex items-center gap-3">
-            <span>Zero Fluff Guarantee</span>
-            <span>·</span>
-            <span>MIT License · 2026</span>
+          <div>
+            <p>© 2026</p>
           </div>
         </div>
       </div>

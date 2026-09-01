@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Terminal as TerminalIcon, Play, RotateCcw, Copy, Check, CornerDownLeft, Sparkles } from 'lucide-react';
+import { Terminal as TerminalIcon, Play, RotateCcw, Copy, Check, CornerDownLeft, Sparkles, ChevronRight } from 'lucide-react';
 
 const BANNER_ART = `  █████╗ ███╗   ███╗ ██████╗ ███████╗██████╗  █████╗ 
  ██╔══██╗████╗ ████║██╔═══██╗██╔════╝██╔══██╗██╔══██╗
@@ -41,12 +41,12 @@ export const CliEmulator: React.FC = () => {
     scrollInternalTerminal();
   }, [logs, step]);
 
-  const startCli = (customName?: string) => {
+  const startCli = () => {
     setLogs([
       { text: BANNER_ART, color: 'text-cyan-400', bold: true },
       { text: '  Amoeba Framework — Blazing Fullstack Scaffolding for Go & TypeScript\n', color: 'text-zinc-400' },
     ]);
-    setInputVal(customName || 'my-app');
+    setInputVal('my-app');
     setStep('name');
   };
 
@@ -201,24 +201,24 @@ export const CliEmulator: React.FC = () => {
 
   return (
     <section id="emulator" className="border-b border-white/10 relative">
-      <div className="container-grid px-6 sm:px-12 lg:px-16 py-14 sm:py-20 space-y-8">
+      <div className="container-grid px-6 sm:px-12 lg:px-16 py-16 space-y-8">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-white/10 pb-6">
           <div>
             <p className="font-mono text-xs tracking-[0.2em] text-cyan-400 uppercase mb-2">
-              02 / Interactive CLI Emulator
+              02 / Interactive Emulator
             </p>
             <h2 className="font-serif-display text-3xl sm:text-4xl md:text-5xl font-light text-white tracking-tight">
-              Amoeba Terminal Simulator
+              Amoeba CLI Simulator
             </h2>
           </div>
           <p className="font-mono text-xs text-zinc-400 max-w-sm leading-relaxed">
-            Test the real interactive CLI prompts right in your browser.
+            Experience the interactive terminal prompt directly in your browser.
           </p>
         </div>
 
         {/* Terminal Window */}
-        <div className="border border-white/15 bg-[#0a0c13] shadow-xl overflow-hidden">
+        <div className="border border-white/15 bg-[#0a0c13] shadow-2xl overflow-hidden">
           {/* Top Bar */}
           <div className="flex items-center justify-between px-4 py-3 bg-[#0e1018] border-b border-white/10 font-mono text-xs">
             <div className="flex items-center gap-3">
@@ -227,82 +227,57 @@ export const CliEmulator: React.FC = () => {
                 <span className="w-3 h-3 rounded-full bg-amber-500/80 inline-block" />
                 <span className="w-3 h-3 rounded-full bg-emerald-500/80 inline-block" />
               </div>
-              <span className="text-zinc-400 font-bold ml-2">amoeba-cli ~ interactive_session</span>
+              <span className="text-zinc-300 font-bold ml-2">amoeba new</span>
             </div>
 
             <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={resetTerminal}
-                className="flex items-center gap-1 text-[11px] text-zinc-400 hover:text-white px-2.5 py-1 bg-white/5 hover:bg-white/10 transition-colors cursor-pointer border border-white/5"
-              >
-                <RotateCcw className="w-3 h-3" />
-                <span>Reset</span>
-              </button>
+              {step !== 'idle' && (
+                <button
+                  type="button"
+                  onClick={resetTerminal}
+                  className="flex items-center gap-1 text-[11px] text-zinc-400 hover:text-white px-2.5 py-1 bg-white/5 hover:bg-white/10 transition-colors cursor-pointer border border-white/10"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  <span>Restart</span>
+                </button>
+              )}
 
               <button
                 type="button"
                 onClick={handleCopyCmd}
-                className="flex items-center gap-1 text-[11px] text-[#08090e] bg-[#f5f5f0] hover:bg-[#00f0ff] px-3 py-1 font-bold transition-all cursor-pointer shadow-sm"
+                className="flex items-center gap-1 text-[11px] text-[#08090e] bg-[#f5f5f0] hover:bg-[#00f0ff] px-3 py-1 font-bold transition-all cursor-pointer"
               >
                 {copied ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
-                <span>{copied ? 'Copied' : 'Copy CLI Flag'}</span>
+                <span>{copied ? 'Copied' : 'Copy Flag'}</span>
               </button>
             </div>
           </div>
 
-          {/* Quick Presets Bar */}
-          <div className="px-4 py-2 bg-[#08090e] border-b border-white/10 flex flex-wrap items-center justify-between gap-2 font-mono text-[11px] text-zinc-400">
-            <span className="text-zinc-500 uppercase tracking-wider">Quick Presets:</span>
-            <div className="flex flex-wrap gap-1.5">
-              {[
-                { label: 'Go + GORM + React', name: 'go-react-app' },
-                { label: 'tRPC Monorepo (Web + Tauri)', name: 'hyper-monorepo' },
-                { label: 'Express REST + Drizzle + Next.js', name: 'rest-service' },
-              ].map((p, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => startCli(p.name)}
-                  className="px-2 py-0.5 border border-white/10 bg-white/5 hover:bg-white/10 hover:border-cyan-500/30 hover:text-cyan-300 transition-colors cursor-pointer"
-                >
-                  {p.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Terminal Screen Body (Internal scrolling only) */}
+          {/* Terminal Screen Body */}
           <div
             ref={terminalBodyRef}
-            className="p-6 font-mono text-xs sm:text-sm text-zinc-200 min-h-[380px] max-h-[500px] overflow-y-auto space-y-3 leading-relaxed"
+            className="p-6 md:p-8 font-mono text-xs sm:text-sm text-zinc-200 min-h-[340px] max-h-[460px] overflow-y-auto space-y-4 leading-relaxed"
           >
             {/* Step: Idle */}
             {step === 'idle' && (
-              <div className="space-y-5 py-4">
-                <div className="border border-cyan-500/20 bg-cyan-950/20 p-4 text-cyan-300 space-y-1.5">
-                  <div className="flex items-center gap-2 font-bold text-white">
-                    <Sparkles className="w-4 h-4 text-cyan-400" />
-                    <span>INTERACTIVE CLI SIMULATOR</span>
-                  </div>
-                  <p className="text-zinc-400 text-xs">
-                    Test the complete interactive scaffolding workflow directly in your terminal window below.
+              <div className="space-y-6 py-6 text-center sm:text-left">
+                <div className="space-y-2 max-w-xl">
+                  <div className="text-white font-bold text-base">Interactive Scaffolding Session</div>
+                  <p className="text-zinc-400 text-xs sm:text-sm leading-relaxed">
+                    Step through the native CLI wizard: select language, database, and frontend target in real time.
                   </p>
                 </div>
 
-                <div className="flex items-center gap-2 text-zinc-400">
-                  <span className="text-cyan-400 font-bold">$</span>
-                  <span>amoeba new</span>
+                <div>
+                  <button
+                    type="button"
+                    onClick={startCli}
+                    className="inline-flex items-center gap-2.5 px-6 py-3 bg-[#f5f5f0] text-[#08090e] font-bold text-xs uppercase tracking-wider hover:bg-[#00f0ff] transition-all cursor-pointer shadow-md"
+                  >
+                    <Play className="w-3.5 h-3.5 fill-current" />
+                    <span>Run amoeba new</span>
+                  </button>
                 </div>
-
-                <button
-                  type="button"
-                  onClick={() => startCli()}
-                  className="inline-flex items-center gap-2.5 px-6 py-3.5 bg-[#f5f5f0] text-[#08090e] font-bold text-xs uppercase tracking-wider hover:bg-[#00f0ff] transition-all cursor-pointer shadow-lg"
-                >
-                  <Play className="w-3.5 h-3.5 fill-current" />
-                  <span>Start amoeba new in browser</span>
-                </button>
               </div>
             )}
 
@@ -318,12 +293,11 @@ export const CliEmulator: React.FC = () => {
 
             {/* Step: Name Prompt */}
             {step === 'name' && (
-              <form onSubmit={handleNameSubmit} className="space-y-2 pt-2">
-                <div className="flex items-center gap-2 text-cyan-300 font-bold">
-                  <span className="text-zinc-500">?</span>
-                  <span>What is the name of your project?</span>
+              <form onSubmit={handleNameSubmit} className="space-y-3 pt-2">
+                <div className="text-cyan-300 font-bold">
+                  <span>? What is the name of your project?</span>
                 </div>
-                <div className="flex items-center gap-2 pl-4">
+                <div className="flex items-center gap-2">
                   <span className="text-cyan-400 font-bold">›</span>
                   <input
                     type="text"
@@ -334,9 +308,9 @@ export const CliEmulator: React.FC = () => {
                   />
                   <button
                     type="submit"
-                    className="px-3 py-1 bg-[#f5f5f0] text-[#08090e] text-xs font-bold hover:bg-[#00f0ff] cursor-pointer ml-2 flex items-center gap-1"
+                    className="px-3.5 py-1 bg-[#f5f5f0] text-[#08090e] text-xs font-bold hover:bg-[#00f0ff] cursor-pointer ml-2 flex items-center gap-1"
                   >
-                    <span>Enter</span>
+                    <span>Next</span>
                     <CornerDownLeft className="w-3 h-3" />
                   </button>
                 </div>
@@ -345,24 +319,21 @@ export const CliEmulator: React.FC = () => {
 
             {/* Step: Backend Language Selection */}
             {step === 'lang' && (
-              <div className="space-y-2 pl-4 pt-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
                 {[
-                  { label: 'Go (Fiber v3 - High Performance Backend)', desc: 'Pure line-of-sight sound server' },
-                  { label: 'TypeScript (Express REST API or tRPC Monorepo)', desc: 'Type-sound fullstack contracts' },
+                  { label: 'Go (Fiber v3)', desc: 'Pure line-of-sight sound backend' },
+                  { label: 'TypeScript', desc: 'Modular Express REST or tRPC Monorepo' },
                 ].map((item, idx) => (
                   <button
                     key={idx}
                     type="button"
                     onClick={() => selectOption('lang', idx)}
-                    className="w-full text-left p-2.5 border border-white/10 hover:border-cyan-400 bg-white/5 hover:bg-cyan-950/30 transition-all cursor-pointer flex items-center justify-between group"
+                    className="p-3 border border-white/10 hover:border-cyan-400 bg-white/5 hover:bg-cyan-950/30 text-left transition-all cursor-pointer flex flex-col justify-between group"
                   >
-                    <div>
-                      <div className="font-bold text-white group-hover:text-cyan-300">
-                        {idx === 0 ? '❯ ' : '  '}{item.label}
-                      </div>
-                      <div className="text-[11px] text-zinc-500 pl-4">{item.desc}</div>
+                    <div className="font-bold text-white group-hover:text-cyan-300">
+                      {item.label}
                     </div>
-                    <span className="text-[10px] text-zinc-600 group-hover:text-cyan-400 font-mono">SELECT ↵</span>
+                    <div className="text-[11px] text-zinc-400 mt-1">{item.desc}</div>
                   </button>
                 ))}
               </div>
@@ -370,24 +341,21 @@ export const CliEmulator: React.FC = () => {
 
             {/* Step: Go Database Selection */}
             {step === 'go_db' && (
-              <div className="space-y-2 pl-4 pt-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
                 {[
-                  { label: 'PostgreSQL (GORM ORM)', desc: 'Postgres driver + GORM models' },
-                  { label: 'MongoDB (Official Go Driver v2)', desc: 'High-speed Go mongo driver v2' },
+                  { label: 'PostgreSQL (GORM)', desc: 'Official Postgres GORM driver' },
+                  { label: 'MongoDB (Go Driver v2)', desc: 'Official Mongo Go driver v2' },
                 ].map((item, idx) => (
                   <button
                     key={idx}
                     type="button"
                     onClick={() => selectOption('go_db', idx)}
-                    className="w-full text-left p-2.5 border border-white/10 hover:border-cyan-400 bg-white/5 hover:bg-cyan-950/30 transition-all cursor-pointer flex items-center justify-between group"
+                    className="p-3 border border-white/10 hover:border-cyan-400 bg-white/5 hover:bg-cyan-950/30 text-left transition-all cursor-pointer flex flex-col justify-between group"
                   >
-                    <div>
-                      <div className="font-bold text-white group-hover:text-cyan-300">
-                        {idx === 0 ? '❯ ' : '  '}{item.label}
-                      </div>
-                      <div className="text-[11px] text-zinc-500 pl-4">{item.desc}</div>
+                    <div className="font-bold text-white group-hover:text-cyan-300">
+                      {item.label}
                     </div>
-                    <span className="text-[10px] text-zinc-600 group-hover:text-cyan-400 font-mono">SELECT ↵</span>
+                    <div className="text-[11px] text-zinc-400 mt-1">{item.desc}</div>
                   </button>
                 ))}
               </div>
@@ -395,24 +363,21 @@ export const CliEmulator: React.FC = () => {
 
             {/* Step: TS Architecture Selection */}
             {step === 'ts_arch' && (
-              <div className="space-y-2 pl-4 pt-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
                 {[
-                  { label: 'Standard REST API (Modular Express + Base DTO + ApiError/ApiResponse)', desc: 'Modular Express with DTOs' },
-                  { label: 'tRPC Monorepo (Turborepo + pnpm workspaces + shared packages)', desc: 'End-to-end sound type RPC' },
+                  { label: 'Standard REST API', desc: 'Express + BaseDto + ApiError' },
+                  { label: 'tRPC Monorepo', desc: 'Turborepo + pnpm workspaces' },
                 ].map((item, idx) => (
                   <button
                     key={idx}
                     type="button"
                     onClick={() => selectOption('ts_arch', idx)}
-                    className="w-full text-left p-2.5 border border-white/10 hover:border-cyan-400 bg-white/5 hover:bg-cyan-950/30 transition-all cursor-pointer flex items-center justify-between group"
+                    className="p-3 border border-white/10 hover:border-cyan-400 bg-white/5 hover:bg-cyan-950/30 text-left transition-all cursor-pointer flex flex-col justify-between group"
                   >
-                    <div>
-                      <div className="font-bold text-white group-hover:text-cyan-300">
-                        {idx === 0 ? '❯ ' : '  '}{item.label}
-                      </div>
-                      <div className="text-[11px] text-zinc-500 pl-4">{item.desc}</div>
+                    <div className="font-bold text-white group-hover:text-cyan-300">
+                      {item.label}
                     </div>
-                    <span className="text-[10px] text-zinc-600 group-hover:text-cyan-400 font-mono">SELECT ↵</span>
+                    <div className="text-[11px] text-zinc-400 mt-1">{item.desc}</div>
                   </button>
                 ))}
               </div>
@@ -420,24 +385,21 @@ export const CliEmulator: React.FC = () => {
 
             {/* Step: TS REST Database Selection */}
             {step === 'ts_rest_db' && (
-              <div className="space-y-2 pl-4 pt-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
                 {[
-                  { label: 'PostgreSQL (Drizzle ORM + pg driver)', desc: 'Zero-overhead TypeScript ORM' },
-                  { label: 'MongoDB (Mongoose ODM)', desc: 'Schema-backed Mongoose driver' },
+                  { label: 'PostgreSQL (Drizzle ORM)', desc: 'Drizzle + pg driver' },
+                  { label: 'MongoDB (Mongoose)', desc: 'Schema-backed Mongoose' },
                 ].map((item, idx) => (
                   <button
                     key={idx}
                     type="button"
                     onClick={() => selectOption('ts_rest_db', idx)}
-                    className="w-full text-left p-2.5 border border-white/10 hover:border-cyan-400 bg-white/5 hover:bg-cyan-950/30 transition-all cursor-pointer flex items-center justify-between group"
+                    className="p-3 border border-white/10 hover:border-cyan-400 bg-white/5 hover:bg-cyan-950/30 text-left transition-all cursor-pointer flex flex-col justify-between group"
                   >
-                    <div>
-                      <div className="font-bold text-white group-hover:text-cyan-300">
-                        {idx === 0 ? '❯ ' : '  '}{item.label}
-                      </div>
-                      <div className="text-[11px] text-zinc-500 pl-4">{item.desc}</div>
+                    <div className="font-bold text-white group-hover:text-cyan-300">
+                      {item.label}
                     </div>
-                    <span className="text-[10px] text-zinc-600 group-hover:text-cyan-400 font-mono">SELECT ↵</span>
+                    <div className="text-[11px] text-zinc-400 mt-1">{item.desc}</div>
                   </button>
                 ))}
               </div>
@@ -445,26 +407,23 @@ export const CliEmulator: React.FC = () => {
 
             {/* Step: Standard Frontend Selection */}
             {step === 'frontend' && (
-              <div className="space-y-2 pl-4 pt-1">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
                 {[
-                  { label: 'Next.js 15 (App Router + Tailwind CSS)', desc: 'React 19 Server Components' },
-                  { label: 'React (Vite + TypeScript + Tailwind CSS)', desc: 'Blazing Fast SPA' },
-                  { label: 'Tauri 2.0 (Desktop Application)', desc: 'Lightweight Native Desktop' },
-                  { label: 'API Only (No Frontend Scaffold)', desc: 'Pure Backend Microservice' },
+                  { label: 'Next.js 15', desc: 'App Router' },
+                  { label: 'React', desc: 'Vite SPA' },
+                  { label: 'Tauri 2.0', desc: 'Desktop' },
+                  { label: 'API Only', desc: 'No Frontend' },
                 ].map((item, idx) => (
                   <button
                     key={idx}
                     type="button"
                     onClick={() => selectOption('frontend', idx)}
-                    className="w-full text-left p-2.5 border border-white/10 hover:border-cyan-400 bg-white/5 hover:bg-cyan-950/30 transition-all cursor-pointer flex items-center justify-between group"
+                    className="p-3 border border-white/10 hover:border-cyan-400 bg-white/5 hover:bg-cyan-950/30 text-left transition-all cursor-pointer group"
                   >
-                    <div>
-                      <div className="font-bold text-white group-hover:text-cyan-300">
-                        {idx === 0 ? '❯ ' : '  '}{item.label}
-                      </div>
-                      <div className="text-[11px] text-zinc-500 pl-4">{item.desc}</div>
+                    <div className="font-bold text-white group-hover:text-cyan-300">
+                      {item.label}
                     </div>
-                    <span className="text-[10px] text-zinc-600 group-hover:text-cyan-400 font-mono">SELECT ↵</span>
+                    <div className="text-[10px] text-zinc-400 mt-0.5">{item.desc}</div>
                   </button>
                 ))}
               </div>
@@ -472,26 +431,23 @@ export const CliEmulator: React.FC = () => {
 
             {/* Step: Tauri Flavor Selection */}
             {step === 'tauri_flavor' && (
-              <div className="space-y-2 pl-4 pt-1">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
                 {[
-                  { label: 'React (Vite + TypeScript)', desc: 'React 19 SPA Desktop' },
-                  { label: 'Next.js 15 (Static SSG Export)', desc: 'Next.js Desktop App' },
-                  { label: 'Vue 3 (Vite + TypeScript)', desc: 'Vue 3 Desktop' },
-                  { label: 'Svelte 5 (Vite + TypeScript)', desc: 'Svelte 5 Runes' },
+                  { label: 'React (Vite)', desc: 'SPA Desktop' },
+                  { label: 'Next.js 15', desc: 'Static SSG' },
+                  { label: 'Vue 3', desc: 'Vite Desktop' },
+                  { label: 'Svelte 5', desc: 'Runes Desktop' },
                 ].map((item, idx) => (
                   <button
                     key={idx}
                     type="button"
                     onClick={() => selectOption('tauri_flavor', idx)}
-                    className="w-full text-left p-2.5 border border-white/10 hover:border-cyan-400 bg-white/5 hover:bg-cyan-950/30 transition-all cursor-pointer flex items-center justify-between group"
+                    className="p-3 border border-white/10 hover:border-cyan-400 bg-white/5 hover:bg-cyan-950/30 text-left transition-all cursor-pointer group"
                   >
-                    <div>
-                      <div className="font-bold text-white group-hover:text-cyan-300">
-                        {idx === 0 ? '❯ ' : '  '}{item.label}
-                      </div>
-                      <div className="text-[11px] text-zinc-500 pl-4">{item.desc}</div>
+                    <div className="font-bold text-white group-hover:text-cyan-300">
+                      {item.label}
                     </div>
-                    <span className="text-[10px] text-zinc-600 group-hover:text-cyan-400 font-mono">SELECT ↵</span>
+                    <div className="text-[10px] text-zinc-400 mt-0.5">{item.desc}</div>
                   </button>
                 ))}
               </div>
@@ -499,25 +455,22 @@ export const CliEmulator: React.FC = () => {
 
             {/* Step: Monorepo Frontend Selection */}
             {step === 'monorepo_fe' && (
-              <div className="space-y-2 pl-4 pt-1">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
                 {[
-                  { label: 'Web App (Next.js web application only)', desc: 'Next.js web client' },
-                  { label: 'Tauri App (Tauri desktop application only)', desc: 'Tauri desktop client' },
-                  { label: 'Both (Next.js web + Tauri desktop applications)', desc: 'Shared cross-platform clients' },
+                  { label: 'Web App Only', desc: 'Next.js web client' },
+                  { label: 'Tauri App Only', desc: 'Desktop client' },
+                  { label: 'Both (Web + Tauri)', desc: 'Unified monorepo' },
                 ].map((item, idx) => (
                   <button
                     key={idx}
                     type="button"
                     onClick={() => selectOption('monorepo_fe', idx)}
-                    className="w-full text-left p-2.5 border border-white/10 hover:border-cyan-400 bg-white/5 hover:bg-cyan-950/30 transition-all cursor-pointer flex items-center justify-between group"
+                    className="p-3 border border-white/10 hover:border-cyan-400 bg-white/5 hover:bg-cyan-950/30 text-left transition-all cursor-pointer group"
                   >
-                    <div>
-                      <div className="font-bold text-white group-hover:text-cyan-300">
-                        {idx === 0 ? '❯ ' : '  '}{item.label}
-                      </div>
-                      <div className="text-[11px] text-zinc-500 pl-4">{item.desc}</div>
+                    <div className="font-bold text-white group-hover:text-cyan-300">
+                      {item.label}
                     </div>
-                    <span className="text-[10px] text-zinc-600 group-hover:text-cyan-400 font-mono">SELECT ↵</span>
+                    <div className="text-[10px] text-zinc-400 mt-0.5">{item.desc}</div>
                   </button>
                 ))}
               </div>
@@ -527,14 +480,14 @@ export const CliEmulator: React.FC = () => {
             {step === 'scaffolding' && (
               <div className="p-4 bg-cyan-950/30 border border-cyan-500/30 text-cyan-300 space-y-1">
                 <div className="font-bold">⚡ Scaffolding project...</div>
-                <div className="text-emerald-400">Writing sound line-of-sight files...</div>
+                <div className="text-emerald-400">Writing line-of-sight sound files...</div>
               </div>
             )}
 
             {/* Step: Done */}
             {step === 'done' && (
               <div className="space-y-4 pt-2">
-                <div className="p-4 border border-emerald-500/40 bg-emerald-950/30 text-emerald-300 space-y-2">
+                <div className="p-4 border border-emerald-500/40 bg-emerald-950/30 text-emerald-300 space-y-1.5">
                   <div className="font-bold text-base flex items-center gap-2 text-emerald-400">
                     <Check className="w-5 h-5" />
                     <span>Project Ready!</span>
@@ -546,7 +499,7 @@ export const CliEmulator: React.FC = () => {
 
                 <div className="space-y-2 text-xs">
                   <div className="font-bold text-white">⚡ Next Steps:</div>
-                  <div className="bg-[#04060a] p-3 border border-white/10 space-y-1 text-zinc-300 font-mono">
+                  <div className="bg-[#04060a] p-3.5 border border-white/10 space-y-1 text-zinc-300 font-mono">
                     <div>cd <span className="text-cyan-400 font-bold">{config.projectName}</span></div>
                     {config.lang === 'go' ? (
                       <div>cd apps/api && go run ./cmd/server/main.go</div>
@@ -561,10 +514,10 @@ export const CliEmulator: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="pt-2 flex items-center gap-3">
+                <div className="pt-2">
                   <button
                     type="button"
-                    onClick={() => startCli()}
+                    onClick={startCli}
                     className="px-4 py-2 bg-[#f5f5f0] text-[#08090e] font-bold text-xs uppercase hover:bg-[#00f0ff] transition-colors cursor-pointer"
                   >
                     Scaffold Another Project
@@ -576,8 +529,8 @@ export const CliEmulator: React.FC = () => {
 
           {/* Terminal Bottom Command Output */}
           <div className="px-4 py-3 bg-[#08090e] border-t border-white/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 font-mono text-xs">
-            <div className="text-zinc-500 flex items-center gap-2">
-              <span>CLI FLAG EQUIVALENT:</span>
+            <div className="text-zinc-400 flex items-center gap-2">
+              <span className="text-zinc-500">CLI FLAG:</span>
               <code className="text-cyan-400 bg-white/5 px-2 py-0.5 border border-white/5 select-all">
                 {getCliOneLiner()}
               </code>
